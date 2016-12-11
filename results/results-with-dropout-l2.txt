@@ -1,0 +1,52 @@
+                .iterations(300)
+                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+                .gradientNormalizationThreshold(1.0)
+                .momentum(0.5)
+                .momentumAfter(Collections.singletonMap(3, 0.9))
+                .regularization(true)
+                .dropOut(0.25)
+                .l2(0.02)
+                .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+                .list()
+                .layer(0, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
+                        .nIn(numInputs).nOut(2729).updater(Updater.NESTEROVS)
+                        .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
+                .layer(1, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
+                        .nIn(2729).nOut(2000).updater(Updater.NESTEROVS)
+                        .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
+                .layer(2, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
+                        .nIn(2000).nOut(1000).updater(Updater.NESTEROVS)
+                        .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
+                .layer(3, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
+                        .nIn(1000).nOut(500).updater(Updater.NESTEROVS)
+                        .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
+                .layer(4, new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
+                        .updater(Updater.NESTEROVS)
+                        .activation("relu")
+                        .nIn(500).nOut(5).build())
+                .pretrain(true).backprop(true)
+                .build();
+
+DUTCH
+Column    MSE            MAE            RMSE           RSE            R^2
+col_0E    7.55696e-02    2.40145e-01    2.74899e-01    4.22172e+00    NaN
+col_1N    9.12206e-02    2.58318e-01    3.02028e-01    2.06514e+00    NaN
+col_2A    4.16998e-02    1.67812e-01    2.04205e-01    1.85640e+00    NaN
+col_3C    3.44665e-02    1.52080e-01    1.85652e-01    2.32473e+00    NaN
+col_4O    1.51279e-02    1.10437e-01    1.22996e-01    1.01075e+00    4.99891e-04
+
+ITALIAN
+Column    MSE            MAE            RMSE           RSE            R^2
+col_0E    5.95395e-02    1.80757e-01    2.44007e-01    2.21612e+00    NaN
+col_1N    7.08224e-02    2.29112e-01    2.66125e-01    2.42869e+00    NaN
+col_2A    7.64720e-02    2.27878e-01    2.76536e-01    2.83358e+00    NaN
+col_3C    4.87007e-02    1.81743e-01    2.20682e-01    3.10789e+00    NaN
+col_4O    2.33996e-02    1.34931e-01    1.52969e-01    1.00021e+00    NaN
+
+SPANISH
+Column    MSE            MAE            RMSE           RSE            R^2
+col_0E    3.13140e-02    1.33026e-01    1.76958e-01    1.06893e+00    7.85658e-04
+col_1N    4.74348e-02    1.82111e-01    2.17795e-01    1.14700e+00    NaN
+col_2A    4.68794e-02    1.86376e-01    2.16517e-01    1.76878e+00    NaN
+col_3C    9.54863e-02    2.53974e-01    3.09009e-01    2.72562e+00    NaN
+col_4O    3.03990e-02    1.53721e-01    1.74353e-01    1.12039e+00    1.15861e-03
