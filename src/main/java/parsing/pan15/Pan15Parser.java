@@ -92,7 +92,6 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
         csvFiles.forEach(f -> {
             Language language = Language.valueOf(f.getName().substring(0, f.getName().lastIndexOf('.')).toUpperCase());
             HashMap<String, Pan15Author> authors = new HashMap<>();
-            System.out.println(f.getName());
             try {
                 Files.readAllLines(f.toPath()).stream().filter(l -> ! l.startsWith("\"AUTHID\"")).forEach(l -> {
                     String[] fields = l.split(",");

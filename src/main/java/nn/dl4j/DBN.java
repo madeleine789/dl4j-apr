@@ -1,5 +1,6 @@
 package nn.dl4j;
 
+import nlp.Pan15Word2Vec;
 import org.datavec.api.records.reader.RecordReader;
 import org.datavec.api.records.reader.impl.csv.CSVRecordReader;
 import org.datavec.api.split.FileSplit;
@@ -93,30 +94,30 @@ public class DBN  {
         int seed = 42;
         MultiLayerConfiguration conf =  new NeuralNetConfiguration.Builder()
                 .seed(seed)
-                .iterations(300)
+                .iterations(100)
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
                 .gradientNormalizationThreshold(1.0)
                 .momentum(0.5)
                 .momentumAfter(Collections.singletonMap(3, 0.9))
                 .regularization(true)
-//                .dropOut(0.25)
-                .l2(0.02)
+                .l2(0.001)
+                .adamMeanDecay(0.6).adamVarDecay(0.7)
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .list()
                 .layer(0, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
-                        .nIn(numInputs).nOut(2729).updater(Updater.NESTEROVS)
+                        .nIn(numInputs).nOut(2729).updater(Updater.ADAM)
                         .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
                 .layer(1, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
-                        .nIn(2729).nOut(2000).updater(Updater.NESTEROVS)
+                        .nIn(2729).nOut(2000).updater(Updater.ADAM)
                         .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
                 .layer(2, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
-                        .nIn(2000).nOut(1000).updater(Updater.NESTEROVS)
+                        .nIn(2000).nOut(1000).updater(Updater.ADAM)
                         .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
                 .layer(3, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
-                        .nIn(1000).nOut(500).updater(Updater.NESTEROVS)
+                        .nIn(1000).nOut(500).updater(Updater.ADAM)
                         .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
                 .layer(4, new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
-                        .updater(Updater.NESTEROVS)
+                        .updater(Updater.ADAM)
                         .activation("relu")
                         .nIn(500).nOut(5).build())
                 .pretrain(true).backprop(true)
@@ -126,7 +127,7 @@ public class DBN  {
 
     public MultiLayerNetwork trainWithEarlyStopping() throws IOException,
             InterruptedException {
-        MultiLayerConfiguration myNetworkConfiguration = getConf(250);
+        MultiLayerConfiguration myNetworkConfiguration = getConf(Pan15Word2Vec.VEC_SIZE);
 
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(testFile));
@@ -159,7 +160,7 @@ public class DBN  {
 
 
     public void runTrainingAndValidate() {
-        this.model = getModel(250);
+        this.model = getModel(Pan15Word2Vec.VEC_SIZE);
         try {
             this.train();
             System.out.println(this.test());

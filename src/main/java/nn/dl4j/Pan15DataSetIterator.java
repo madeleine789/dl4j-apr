@@ -46,6 +46,19 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
                 language);
     }
 
+    /**
+     * Main constructor for single-label regression (i.e., regression with one outputs)
+     *
+     * @param recordReader      RecordReader to get data from
+     * @param labelIndexFrom    Index of the first regression target
+     * @param batchSize         Minibatch size
+     * @param regression        Require regression = true. Mainly included to avoid clashing with other constructors previously defined :/
+     */
+    public Pan15DataSetIterator(RecordReader recordReader, int batchSize, int labelIndexFrom, boolean regression, Language language){
+        this(recordReader, new SelfWritableConverter(), batchSize, labelIndexFrom, labelIndexFrom, -1, -1, regression,
+                language);
+    }
+
 
     /**
      * Main constructor
@@ -59,8 +72,8 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
      * @param regression        if true: regression. If false: classification (assume labelIndexFrom is a
      */
     public Pan15DataSetIterator(RecordReader recordReader, WritableConverter converter, int batchSize, int labelIndexFrom,
-                                int labelIndexTo, int numPossibleLabels, int maxNumBatches, boolean regression,
-                                Language language) {
+                                 int labelIndexTo, int numPossibleLabels, int maxNumBatches, boolean regression,
+                                 Language language) {
         super(recordReader, batchSize, maxNumBatches);
         this.recordReader = recordReader;
         this.converter = converter;
@@ -99,7 +112,7 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
                     if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
                         return new DataSet(Nd4j.zeros(1, maxlen),Nd4j.zeros(1, (labelIndexTo - labelIndex + 1))) ;
 
-                    featureVector = pan15Word2Vec.getSentence2Vec(value, language);
+                    featureVector = pan15Word2Vec.getSentence2VecSum(value, language);
                 }
             }
         }

@@ -83,7 +83,7 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
         WordVectorSerializer.writeWord2VecModel(model, dir + "/" + language.getName() + "_model.txt");
     }
 
-    public INDArray getSentence2Vec(String sentence, Language language) {
+    public INDArray getSentence2VecTfIdf(String sentence, Language language) {
         t.setTokenPreProcessor(new CommonPreprocessor());
         List<String> tokens = t.create(sentence).getTokens();
         double[] tfidf = new double[tokens.size()];
@@ -99,9 +99,22 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
         for (double[] vector : wordEmbeddings) {
             if (vector != null) {
                 INDArray vec = Nd4j.create(vector);
-                featureVector.addi(vec);
+                featureVector = featureVector.add(vec);
             }
         }
+        return featureVector;
+    }
+
+    public INDArray getSentence2VecSum(String sentence, Language language) {
+        List<double[]> wordEmbeddings = getWordEmbeddings(sentence, language);
+        INDArray featureVector = Nd4j.zeros(1, VEC_SIZE);
+        for (double[] vector : wordEmbeddings) {
+            if (vector != null) {
+                INDArray vec = Nd4j.create(vector);
+                featureVector = featureVector.add(vec);
+            }
+        }
+        featureVector.divi(wordEmbeddings.size());
         return featureVector;
     }
 
