@@ -1,24 +1,28 @@
 package nlp;
 
-import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
-import model.Author;
-import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.factory.Nd4j;
-import parsing.CorpusParser;
 import model.Language;
+import org.deeplearning4j.models.embeddings.learning.ElementsLearningAlgorithm;
+import org.deeplearning4j.models.embeddings.learning.impl.elements.CBOW;
+import org.deeplearning4j.models.embeddings.learning.impl.elements.GloVe;
+import org.deeplearning4j.models.embeddings.learning.impl.elements.SkipGram;
+import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
+import org.deeplearning4j.models.word2vec.VocabWord;
 import org.deeplearning4j.models.word2vec.Word2Vec;
 import org.deeplearning4j.text.sentenceiterator.CollectionSentenceIterator;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
 import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.factory.Nd4j;
 import parsing.pan15.Pan15Author;
 import parsing.pan15.Pan15Parser;
 
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static nlp.Utils.getSentencesFromLanguage;
@@ -30,8 +34,14 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
     private TokenizerFactory t = new DefaultTokenizerFactory();
     private HashMap<Language, HashMap<String, Pan15Author>> languages = Utils.getLanguages();
     public static final Integer VEC_SIZE = 250;
+    private ElementsLearningAlgorithm<VocabWord> learningAlgorithm = new SkipGram<>();
 
     public Pan15Word2Vec() {
+        getW2VFromFile();
+    }
+
+    public Pan15Word2Vec(ElementsLearningAlgorithm<VocabWord> learningAlgorithm) {
+        this.learningAlgorithm = learningAlgorithm;
         getW2VFromFile();
     }
 
@@ -50,7 +60,7 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
             List<String> sentences = getSentencesFromLanguage(language);
 
             SentenceIterator iter = new CollectionSentenceIterator(PREPROCESSOR, sentences);
-            Word2Vec vec = new Word2Vec.Builder()
+            Word2Vec vec = new Word2Vec.Builder().elementsLearningAlgorithm(learningAlgorithm)
                     .minWordFrequency(6)
                     .iterations(15)
                     .layerSize(VEC_SIZE)
@@ -67,9 +77,11 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
 
     }
 
-    public static Word2Vec readModelFromFile(Language language) {
+    public  Word2Vec readModelFromFile(Language language) {
+        String path = (learningAlgorithm instanceof SkipGram) ?
+                language.getName() + "_model.txt" : language.getName() + "_model_" + learningAlgorithm.getCodeName() + ".txt";
         URL resource = Pan15Word2Vec.class.getClassLoader()
-                .getResource("word2vec/" + language.getName() + "_model.txt");
+                .getResource("word2vec/" + path);
         try {
             return WordVectorSerializer.readWord2VecModel(Paths.get(resource.toURI()).toFile());
         } catch (URISyntaxException e) {
@@ -78,9 +90,12 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
         return null;
     }
 
-    public static void saveModel(Word2Vec model, Language language) {
+    public void saveModel(Word2Vec model, Language language) {
         String dir = "./src/main/resources/word2vec";
-        WordVectorSerializer.writeWord2VecModel(model, dir + "/" + language.getName() + "_model.txt");
+        String path = (learningAlgorithm instanceof SkipGram) ?
+                dir + "/" + language.getName() + "_model.txt"
+                :dir + "/" + language.getName() + "_model_" + learningAlgorithm.getCodeName() + ".txt";
+        WordVectorSerializer.writeWord2VecModel(model, path);
     }
 
     public INDArray getSentence2VecTfIdf(String sentence, Language language) {
@@ -129,5 +144,10 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
         return tokens.stream().map(loadedVec::getWordVector).collect(Collectors.toList());
     }
 
+
+    public static void main(String... args) {
+        new Pan15Word2Vec(new GloVe<>());
+
+    }
 
 }

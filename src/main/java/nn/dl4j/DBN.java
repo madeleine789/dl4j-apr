@@ -13,6 +13,9 @@ import org.deeplearning4j.earlystopping.termination.MaxEpochsTerminationConditio
 import org.deeplearning4j.earlystopping.termination.MaxTimeIterationTerminationCondition;
 import org.deeplearning4j.earlystopping.trainer.EarlyStoppingTrainer;
 import org.deeplearning4j.eval.RegressionEvaluation;
+import org.deeplearning4j.models.embeddings.learning.ElementsLearningAlgorithm;
+import org.deeplearning4j.models.embeddings.learning.impl.elements.SkipGram;
+import org.deeplearning4j.models.word2vec.VocabWord;
 import org.deeplearning4j.nn.api.Layer;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.GradientNormalization;
@@ -50,8 +53,7 @@ public class DBN  {
 
     private int idxFrom = 2;
     private int idxTo = 6;
-
-    public DBN() { }
+    private ElementsLearningAlgorithm<VocabWord> learningAlgorithm = new SkipGram<>();
 
     public DBN(Language language, String testFile, String trainFile) {
         this.language = language;
@@ -63,7 +65,7 @@ public class DBN  {
         this(language, testFile, trainFile);
         this.idxFrom = label.getIndex();
         this.idxTo = label.getIndex();
-        this.numOutputs = 1;
+        numOutputs = 1;
     }
 
     public void train() throws Exception {
@@ -71,7 +73,7 @@ public class DBN  {
         log.info("Load data from " + trainFile.toString() );
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(trainFile));
-        DataSetIterator iter = new Pan15DataSetIterator(recordReader,500, idxFrom, idxTo,true, language);
+        DataSetIterator iter = new Pan15DataSetIterator(recordReader,500, idxFrom, idxTo, true, language, learningAlgorithm);
 
             log.info("Train model....");
             while(iter.hasNext()) {
@@ -87,7 +89,7 @@ public class DBN  {
         RecordReader recordReader = new CSVRecordReader(1);
         log.info("Load verification data from " + testFile.toString() ) ;
         recordReader.initialize(new FileSplit(testFile));
-        DataSetIterator iter = new Pan15DataSetIterator(recordReader,100, idxFrom, idxTo,true, language);
+        DataSetIterator iter = new Pan15DataSetIterator(recordReader,100, idxFrom, idxTo,true, language, learningAlgorithm);
 
         RegressionEvaluation eval = new RegressionEvaluation( numOutputs );
         while(iter.hasNext()) {
@@ -150,9 +152,9 @@ public class DBN  {
 
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(testFile));
-        DataSetIterator myTestData = new Pan15DataSetIterator(recordReader,100, 2,6,true, language);;
+        DataSetIterator myTestData = new Pan15DataSetIterator(recordReader,100, 2,6,true, language, learningAlgorithm);;
         recordReader.initialize(new FileSplit(trainFile));
-        DataSetIterator myTrainData = new Pan15DataSetIterator(recordReader,500, 2,6,true, language);;
+        DataSetIterator myTrainData = new Pan15DataSetIterator(recordReader,500, 2,6,true, language, learningAlgorithm);;
 
         EarlyStoppingConfiguration esConf = new EarlyStoppingConfiguration.Builder()
                 .epochTerminationConditions(new MaxEpochsTerminationCondition(300))

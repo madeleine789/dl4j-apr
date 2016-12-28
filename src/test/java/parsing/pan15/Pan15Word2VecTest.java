@@ -2,6 +2,10 @@ package parsing.pan15;
 
 import nlp.Pan15SentencePreProcessor;
 import nlp.Pan15Word2Vec;
+import org.deeplearning4j.models.embeddings.learning.impl.elements.CBOW;
+import org.deeplearning4j.models.embeddings.learning.impl.elements.GloVe;
+import org.deeplearning4j.models.embeddings.learning.impl.elements.SkipGram;
+import org.deeplearning4j.models.word2vec.VocabWord;
 import org.deeplearning4j.models.word2vec.Word2Vec;
 import org.deeplearning4j.text.sentenceiterator.CollectionSentenceIterator;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
@@ -43,13 +47,21 @@ public class Pan15Word2VecTest {
                 .build();
 
         englishVec.fit();
-        Word2Vec loadedEnglishVec = Pan15Word2Vec.readModelFromFile(Language.ENGLISH);
-        loadedEnglishVec.setTokenizerFactory(t);
-        loadedEnglishVec.setSentenceIter(englishIter);
+        Word2Vec loadedEnglishVec1 = new Pan15Word2Vec(new SkipGram<>()).readModelFromFile(Language.ENGLISH);
+        Word2Vec loadedEnglishVec2 = new Pan15Word2Vec(new CBOW<>()).readModelFromFile(Language.ENGLISH);
+        Word2Vec loadedEnglishVec3 = new Pan15Word2Vec(new GloVe<>()).readModelFromFile(Language.ENGLISH);
+        loadedEnglishVec1.setTokenizerFactory(t);
+        loadedEnglishVec1.setSentenceIter(englishIter);
+        loadedEnglishVec2.setTokenizerFactory(t);
+        loadedEnglishVec2.setSentenceIter(englishIter);
+        loadedEnglishVec3.setTokenizerFactory(t);
+        loadedEnglishVec3.setSentenceIter(englishIter);
 
         //then
-        Assert.assertNotNull(loadedEnglishVec);
-        System.out.println(englishVec.wordsNearest("death", 10));
-        System.out.println(loadedEnglishVec.wordsNearest("life", 10));
+        Assert.assertNotNull(loadedEnglishVec1);
+        System.out.println(englishVec.wordsNearest("home", 15));
+        System.out.println(loadedEnglishVec1.wordsNearest("home", 15));
+        System.out.println(loadedEnglishVec2.wordsNearest("home", 15));
+        System.out.println(loadedEnglishVec3.wordsNearest("home", 15));
     }
 }

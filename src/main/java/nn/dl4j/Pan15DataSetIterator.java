@@ -4,6 +4,9 @@ import org.datavec.api.io.WritableConverter;
 import org.datavec.api.io.converters.SelfWritableConverter;
 import org.datavec.api.records.reader.RecordReader;
 import org.datavec.api.writable.Writable;
+import org.deeplearning4j.models.embeddings.learning.ElementsLearningAlgorithm;
+import org.deeplearning4j.models.embeddings.learning.impl.elements.SkipGram;
+import org.deeplearning4j.models.word2vec.VocabWord;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.factory.Nd4j;
@@ -41,9 +44,9 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
      * @param regression        Require regression = true. Mainly included to avoid clashing with other constructors previously defined :/
      */
     public Pan15DataSetIterator(RecordReader recordReader, int batchSize, int labelIndexFrom, int labelIndexTo,
-                                boolean regression, Language language){
+                                boolean regression, Language language, ElementsLearningAlgorithm<VocabWord> learningAlgorithm){
         this(recordReader, new SelfWritableConverter(), batchSize, labelIndexFrom, labelIndexTo, -1, -1, regression,
-                language);
+                language, learningAlgorithm);
     }
 
     /**
@@ -54,9 +57,10 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
      * @param batchSize         Minibatch size
      * @param regression        Require regression = true. Mainly included to avoid clashing with other constructors previously defined :/
      */
-    public Pan15DataSetIterator(RecordReader recordReader, int batchSize, int labelIndexFrom, boolean regression, Language language){
-        this(recordReader, new SelfWritableConverter(), batchSize, labelIndexFrom, labelIndexFrom, -1, -1, regression,
-                language);
+    public Pan15DataSetIterator(RecordReader recordReader, int batchSize, int labelIndexFrom, boolean regression,
+                                Language language, ElementsLearningAlgorithm<VocabWord> learningAlgorithm){
+        this(recordReader, new SelfWritableConverter(), batchSize, labelIndexFrom, labelIndexFrom,
+                -1, -1, regression, language, learningAlgorithm);
     }
 
 
@@ -73,7 +77,7 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
      */
     public Pan15DataSetIterator(RecordReader recordReader, WritableConverter converter, int batchSize, int labelIndexFrom,
                                  int labelIndexTo, int numPossibleLabels, int maxNumBatches, boolean regression,
-                                 Language language) {
+                                 Language language, ElementsLearningAlgorithm<VocabWord> learningAlgorithm) {
         super(recordReader, batchSize, maxNumBatches);
         this.recordReader = recordReader;
         this.converter = converter;
@@ -84,6 +88,7 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
         this.numPossibleLabels = numPossibleLabels;
         this.regression = regression;
         this.language = language;
+        this.pan15Word2Vec = new Pan15Word2Vec(learningAlgorithm);
     }
 
     public DataSet getDataSet(List<Writable> record) {
