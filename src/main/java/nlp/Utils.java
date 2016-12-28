@@ -1,6 +1,14 @@
 package nlp;
 
+import model.Author;
+import model.Language;
+import parsing.CorpusParser;
+import parsing.pan15.Pan15Author;
+import parsing.pan15.Pan15Parser;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Utils {
 
@@ -55,5 +63,30 @@ public class Utils {
         return tf(doc, term) * idf(docs, term);
     }
 
-    //average of (word vectors multiplied by tfidf)
+    private static CorpusParser<Pan15Author> parser = new Pan15Parser();
+    private static HashMap<Language, HashMap<String, Pan15Author>> languages = parser.parseCSVCorpus();
+    private static HashMap<Language, List<String>>  sentences = new HashMap<>();
+
+    public static List<String> getSentencesFromLanguage(Language language) {
+        if (!sentences.containsKey(language)) {
+            List<String> s = languages.get(language).values().stream().map(Author::getDocuments)
+                    .collect(Collectors.toList())
+                    .stream().flatMap(List::stream).collect(Collectors.toList());
+            sentences.put(language, s);
+        }
+        return sentences.get(language);
+    }
+
+    public static HashMap<Language, HashMap<String, Pan15Author>> getLanguages() {
+        return languages;
+    }
+
+    public static String normalize(String word) {
+        word =  (word.startsWith("P_")) ? word : word.toLowerCase();
+        word = word.replaceAll("[^A-Za-z]$", "");
+        word = word.replaceAll("^[^A-Za-z]$", "");
+        word = word.replaceAll("^[^A-Za-z@#]", "");
+        return word;
+    }
+
 }

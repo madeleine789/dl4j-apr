@@ -98,24 +98,36 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
         INDArray label = null;
         INDArray featureVector = null;
         int labelCount = 0;
+        if (labelIndexTo != labelIndex) {
+            for (int j = 1; j <= labelIndexTo; j++) {
+                Writable current = currList.get(j);
 
-        for (int j = 1; j < 7; j++) {
-            Writable current = currList.get(j);
+                if (regression && j >= labelIndex && j <= labelIndexTo) {
+                    //This is the multi-label regression case
+                    if (label == null) label = Nd4j.create(1, (labelIndexTo - labelIndex + 1));
+                    label.putScalar(labelCount++, current.toDouble());
+                } else {
+                    String value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
+                    if (featureVector == null) {
+                        if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
+                            return new DataSet(Nd4j.zeros(1, maxlen),Nd4j.zeros(1, (labelIndexTo - labelIndex + 1))) ;
 
-            if (regression && j >= labelIndex && j <= labelIndexTo) {
-                //This is the multi-label regression case
-                if (label == null) label = Nd4j.create(1, (labelIndexTo - labelIndex + 1));
-                label.putScalar(labelCount++, current.toDouble());
-            } else {
-                String value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
-                if (featureVector == null) {
-                    if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
-                        return new DataSet(Nd4j.zeros(1, maxlen),Nd4j.zeros(1, (labelIndexTo - labelIndex + 1))) ;
-
-                    featureVector = pan15Word2Vec.getSentence2VecSum(value, language);
+                        featureVector = pan15Word2Vec.getSentence2VecSum(value, language);
+                    }
                 }
             }
+            return new DataSet(featureVector, label);
+        } else {
+            Writable current = currList.get(labelIndex);
+            label = Nd4j.create(1, 1);
+            label.putScalar(labelIndex, current.toDouble());
+            current = currList.get(1);
+            String value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
+            if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
+                return new DataSet(Nd4j.zeros(1, maxlen), Nd4j.zeros(1, (labelIndexTo - labelIndex + 1))) ;
+            featureVector = pan15Word2Vec.getSentence2VecSum(value, language);
         }
+
         return new DataSet(featureVector, label);
     }
 }

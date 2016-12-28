@@ -21,14 +21,14 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static nlp.Utils.getSentencesFromLanguage;
+
 public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
 
     public static final Pan15SentencePreProcessor PREPROCESSOR = new Pan15SentencePreProcessor();
     private static HashMap<Language, Word2Vec> languageWord2VecMap = new HashMap<>();
     private TokenizerFactory t = new DefaultTokenizerFactory();
-    private CorpusParser<Pan15Author> parser = new Pan15Parser();
-    HashMap<Language, HashMap<String, Pan15Author>> languages = parser.parseCSVCorpus();
-    private static HashMap<Language, List<String>>  sentences = new HashMap<>();
+    private HashMap<Language, HashMap<String, Pan15Author>> languages = Utils.getLanguages();
     public static final Integer VEC_SIZE = 250;
 
     public Pan15Word2Vec() {
@@ -129,14 +129,5 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
         return tokens.stream().map(loadedVec::getWordVector).collect(Collectors.toList());
     }
 
-        private List<String> getSentencesFromLanguage(Language language) {
-        if (!sentences.containsKey(language)) {
-            List<String> s = languages.get(language).values().stream().map(Author::getDocuments)
-                    .collect(Collectors.toList())
-                    .stream().flatMap(List::stream).collect(Collectors.toList());
-            sentences.put(language, s);
-        }
-        return sentences.get(language);
-    }
 
 }

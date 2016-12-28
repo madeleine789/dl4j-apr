@@ -1,5 +1,7 @@
 package nn.dl4j;
 
+import model.Language;
+import model.Personality;
 import nlp.Pan15Word2Vec;
 import org.datavec.api.records.reader.RecordReader;
 import org.datavec.api.records.reader.impl.csv.CSVRecordReader;
@@ -26,7 +28,6 @@ import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import model.Language;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,15 +35,21 @@ import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 public class DBN  {
+
     private static Logger log = LoggerFactory.getLogger(DBN.class);
     private MultiLayerNetwork model;
-    private int numOutputs = 5;
+    private static int numOutputs = 5;
+    private static int iterations = 100;
+
     private Language language = Language.ENGLISH;
-    public File testFile = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/supervised/pan15/english" +
+    private File testFile = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/supervised/pan15/english" +
             "/english-test-short.csv");
-    public File trainFile = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/supervised/pan15/english" +
+    private File trainFile = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/supervised/pan15/english" +
             "/english-train-short.csv");
     static String directory = "/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/early-stopping/";
+
+    private int idxFrom = 2;
+    private int idxTo = 6;
 
     public DBN() { }
 
@@ -52,12 +59,19 @@ public class DBN  {
         this.trainFile = new File(trainFile);
     }
 
+    public DBN(Language language, String testFile, String trainFile, Personality label) {
+        this(language, testFile, trainFile);
+        this.idxFrom = label.getIndex();
+        this.idxTo = label.getIndex();
+        this.numOutputs = 1;
+    }
+
     public void train() throws Exception {
 
         log.info("Load data from " + trainFile.toString() );
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(trainFile));
-        DataSetIterator iter = new Pan15DataSetIterator(recordReader,500, 2,6,true, language);
+        DataSetIterator iter = new Pan15DataSetIterator(recordReader,500, idxFrom, idxTo,true, language);
 
             log.info("Train model....");
             while(iter.hasNext()) {
@@ -73,7 +87,7 @@ public class DBN  {
         RecordReader recordReader = new CSVRecordReader(1);
         log.info("Load verification data from " + testFile.toString() ) ;
         recordReader.initialize(new FileSplit(testFile));
-        DataSetIterator iter = new Pan15DataSetIterator(recordReader,100, 2,6,true, language);
+        DataSetIterator iter = new Pan15DataSetIterator(recordReader,100, idxFrom, idxTo,true, language);
 
         RegressionEvaluation eval = new RegressionEvaluation( numOutputs );
         while(iter.hasNext()) {
@@ -94,32 +108,37 @@ public class DBN  {
         int seed = 42;
         MultiLayerConfiguration conf =  new NeuralNetConfiguration.Builder()
                 .seed(seed)
-                .iterations(100)
+                .iterations(iterations)
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
                 .gradientNormalizationThreshold(1.0)
-                .momentum(0.5)
-                .momentumAfter(Collections.singletonMap(3, 0.9))
                 .regularization(true)
-                .l2(0.001)
-                .adamMeanDecay(0.6).adamVarDecay(0.7)
+//                .l2(0.001)
+                .dropOut(0.2)
+                .updater(Updater.ADAM)
+                .adamMeanDecay(0.5)
+                .adamVarDecay(0.5)
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .list()
                 .layer(0, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
-                        .nIn(numInputs).nOut(2729).updater(Updater.ADAM)
+                        .nIn(numInputs).nOut(1000)
                         .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
                 .layer(1, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
-                        .nIn(2729).nOut(2000).updater(Updater.ADAM)
+                        .nIn(1000).nOut(2750)
                         .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
                 .layer(2, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
-                        .nIn(2000).nOut(1000).updater(Updater.ADAM)
+                        .nIn(2750).nOut(3750)
                         .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
                 .layer(3, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
-                        .nIn(1000).nOut(500).updater(Updater.ADAM)
+                        .nIn(3750).nOut(2000)
                         .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
-                .layer(4, new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
-                        .updater(Updater.ADAM)
-                        .activation("relu")
-                        .nIn(500).nOut(5).build())
+                .layer(4, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
+                        .nIn(2000).nOut(1000)
+                        .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
+                .layer(5, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
+                        .nIn(1000).nOut(500)
+                        .activation("relu").lossFunction(LossFunctions.LossFunction.MSE).build())
+                .layer(6, new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
+                        .nIn(500).nOut(numOutputs).updater(Updater.ADAM).adamMeanDecay(0.6).adamVarDecay(0.7).build())
                 .pretrain(true).backprop(true)
                 .build();
         return new MultiLayerNetwork(conf);
