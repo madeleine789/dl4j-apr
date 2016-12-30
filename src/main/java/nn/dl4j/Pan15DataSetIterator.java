@@ -124,12 +124,32 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
             return new DataSet(featureVector, label);
         } else {
             Writable current = currList.get(labelIndex);
-            label = Nd4j.create(1, 1);
-            label.putScalar(labelIndex, current.toDouble());
+            if (labelIndex < 7) {               // PERSONALITY
+                label = Nd4j.create(1, 1);
+                label.putScalar(0, 0, current.toDouble());
+            } else if (labelIndex == 7) {       // GENDER
+                label = Nd4j.create(1, 1);
+                if (Objects.equals(current.toString(), "M")) {
+                    label.putScalar(0, 0, 1);
+                } else {
+                    label.putScalar(0, 0, 0);
+                }
+            } else if (labelIndex == 8) {       // AGE GROUP
+                label = Nd4j.create(1, 100);
+                String[] range = current.toString().split("-");
+                if (Objects.equals(range[0], "XX"))
+                    throw new UnsupportedOperationException("Age group prediction is not available for this language.");
+                int start = Integer.parseInt(range[0]);
+                int stop = (!Objects.equals(range[1], "XX")) ? Integer.parseInt(range[1]) : 100;
+                for (int i = 0; i < 100; i++) {
+                    if (i >= start - 1 && i <= stop - 1) label.putScalar(0, i, 1);
+                }
+            }
+
             current = currList.get(1);
             String value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
             if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
-                return new DataSet(Nd4j.zeros(1, maxlen), Nd4j.zeros(1, (labelIndexTo - labelIndex + 1))) ;
+                return new DataSet(Nd4j.zeros(1, maxlen), Nd4j.zeros(1, 1)) ;
             featureVector = pan15Word2Vec.getSentence2VecSum(value, language);
         }
 

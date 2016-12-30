@@ -66,4 +66,12 @@ public class Pan15Author implements Author {
     public HashMap<Personality, Double> getPersonality() {
         return personality;
     }
+
+    public String getAge() {
+        return age;
+    }
+
+    public String getGender() {
+        return gender;
+    }
 }

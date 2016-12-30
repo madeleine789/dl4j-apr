@@ -7,9 +7,7 @@ import model.Personality;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -64,6 +62,7 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
     }
 
     public static HashMap<String, Pan15Author> parseLanguage(String path, Language language) {
+        path = path + language.getName() + "/";
         URL resource = Pan15Parser.class.getClassLoader().getResource(path);
         File folder = new File(resource.getPath());
         File[] files = folder.listFiles();
@@ -149,6 +148,86 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
             result.put(l, parseLanguage(path, l));
         }
         return result;
+    }
+
+    private void toCSV() throws FileNotFoundException {
+        HashMap<Language, HashMap<String, Pan15Author>> languageHashMapHashMap = parseXMLCorpus("xml/pan15-");
+        for (Language language : Language.values()) {
+            HashMap<String, Pan15Author> result = languageHashMapHashMap.get(language);
+            PrintWriter pw = new PrintWriter(new File("test-" + language.getName() + ".csv"));
+            pw.write("\"AUTHID\",\"STATUS\",\"sEXT\",\"sNEU\",\"sAGR\",\"sCON\",\"sOPN\",\"GENDER\",\"AGE\"\n");
+            for (String id : result.keySet()) {
+                Pan15Author author = result.get(id);
+                for (String doc : author.getDocuments()) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append('"').append(author.getId()).append('"').append(',');
+                    sb.append('"').append(doc.trim().replaceAll("\n", " ")).append('"').append(',');
+                    sb.append(author.getPersonality().get(Personality.E)).append(',');
+                    sb.append(author.getPersonality().get(Personality.N)).append(',');
+                    sb.append(author.getPersonality().get(Personality.A)).append(',');
+                    sb.append(author.getPersonality().get(Personality.C)).append(',');
+                    sb.append(author.getPersonality().get(Personality.O)).append(',');
+                    sb.append(author.getGender()).append(',');
+                    sb.append(author.getAge()).append("\n");
+                    pw.write(sb.toString());
+                }
+            }
+            pw.close();
+        }
+    }
+
+    private void divideFiles() {
+        {
+            URL resource = Pan15Parser.class.getClassLoader().getResource("supervised/pan15/corpora");
+            File folder = new File(resource.getPath());
+            File[] files = folder.listFiles();
+            List<File> csvFiles = Arrays.stream(files).filter(f -> f.getName().endsWith(".csv")).collect(Collectors.toList());
+
+            csvFiles.forEach(f -> {
+                Language language = Language.valueOf(f.getName().substring(0, f.getName().lastIndexOf('.')).toUpperCase());
+                HashMap<String, List<String>> authors = new HashMap<>();
+                try {
+                    Files.readAllLines(f.toPath()).stream().filter(l -> ! l.startsWith("\"AUTHID\"")).forEach(l -> {
+                        String[] fields = l.split(",");
+                        String id = fields[0].substring(1, fields[0].lastIndexOf("\""));
+                        List<String> docs = authors.getOrDefault(id, new ArrayList<>());
+                        docs.add(l);
+                        authors.put(id, docs);
+                    });
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                PrintWriter pw1, pw2;
+                try {
+                    pw1 = new PrintWriter(new File(language.getName() + "-train-pan15.csv"));
+                    pw1.write("\"AUTHID\",\"STATUS\",\"sEXT\",\"sNEU\",\"sAGR\",\"sCON\",\"sOPN\",\"GENDER\",\"AGE\"\n");
+                    pw2 = new PrintWriter(new File(language.getName()+"-test-pan15.csv"));
+                    pw2.write("\"AUTHID\",\"STATUS\",\"sEXT\",\"sNEU\",\"sAGR\",\"sCON\",\"sOPN\",\"GENDER\",\"AGE\"\n");
+                    for (String id : authors.keySet()) {
+                        List<String> lines = authors.get(id);
+                        int train = (int) (lines.size() * 0.7);
+                        List<String> training = lines.subList(0, train + 1);
+                        List<String> testing = lines.subList(train + 1, lines.size());
+                        training.forEach(l -> {
+                            pw1.write(l);
+                            pw1.write("\n");
+                        });
+
+                        testing.forEach(l -> {
+                            pw2.write(l);
+                            pw2.write("\n");
+                        });
+
+                    }
+                    pw1.close();
+                    pw2.close();
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+            });
+        }
     }
 
     public static void main(String... args) throws IOException, JAXBException, URISyntaxException {
