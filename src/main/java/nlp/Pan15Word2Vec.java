@@ -17,7 +17,6 @@ import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import parsing.pan15.Pan15Author;
-import parsing.pan15.Pan15Parser;
 
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -35,7 +34,7 @@ public class Pan15Word2Vec implements Model {
     private TokenizerFactory t = new DefaultTokenizerFactory();
     private HashMap<Language, HashMap<String, Pan15Author>> languages = Utils.getLanguages();
     private static final Integer VEC_LENGTH = 250;
-    private ElementsLearningAlgorithm<VocabWord> learningAlgorithm = new CBOW<>();
+    private ElementsLearningAlgorithm<VocabWord> learningAlgorithm = new SkipGram<>();
 
     public Pan15Word2Vec() {
         getW2VFromFile();

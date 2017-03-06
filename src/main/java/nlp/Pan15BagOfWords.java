@@ -15,6 +15,11 @@ public class Pan15BagOfWords implements Model {
 
     private static HashMap<Language, LinkedHashMap<String, Integer>> bows = getBOWs();
     private final static int VEC_LENGTH = 5000;
+    private boolean binaryBow = true;
+
+    public Pan15BagOfWords(boolean binaryBow) {
+        this.binaryBow = binaryBow;
+    }
 
 
     private static HashMap<Language, LinkedHashMap<String, Integer>> getBOWs() {
@@ -81,6 +86,6 @@ public class Pan15BagOfWords implements Model {
 
     @Override
     public INDArray getVector(String sentence, Language language) {
-        return getBinaryBoWVector(sentence, language);
+        return (binaryBow) ? getBinaryBoWVector(sentence, language): getBoWVector(sentence, language);
     }
 }

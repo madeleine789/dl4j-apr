@@ -1,18 +1,18 @@
 package nn.dl4j;
 
-import nlp.*;
+import model.Language;
+import nlp.Model;
+import nlp.Pan15BagOfWords;
+import nlp.Pan15SentencePreProcessor;
+import nlp.Pan15Word2Vec;
 import org.datavec.api.io.WritableConverter;
 import org.datavec.api.io.converters.SelfWritableConverter;
 import org.datavec.api.records.reader.RecordReader;
 import org.datavec.api.writable.Writable;
-import org.deeplearning4j.models.embeddings.learning.ElementsLearningAlgorithm;
-import org.deeplearning4j.models.embeddings.learning.impl.elements.SkipGram;
-import org.deeplearning4j.models.word2vec.VocabWord;
 import org.deeplearning4j.models.word2vec.Word2Vec;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.factory.Nd4j;
-import model.Language;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,12 +29,6 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
     protected DataSet last;
     protected boolean regression = false;
     protected Language language = Language.ENGLISH;
-//    int maxlen = Pan15Doc2Vec.VEC_LENGTH;
-
-//    private Pan15Word2Vec pan15Word2Vec = new Pan15Word2Vec();
-//    private Pan15Doc2Vec pan15Doc2Vec = new Pan15Doc2Vec();
-//    private Pan15Tweet2Vec pan15Tweet2Vec = new Pan15Tweet2Vec();
-    private Pan15BagOfWords pan15BagOfWords = new Pan15BagOfWords();
     private Pan15SentencePreProcessor preProcessor = new Pan15SentencePreProcessor();
     private Model model;
 

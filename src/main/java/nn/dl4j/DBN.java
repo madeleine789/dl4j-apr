@@ -1,5 +1,6 @@
 package nn.dl4j;
 
+import model.Config;
 import model.Language;
 import model.Personality;
 import nlp.*;
@@ -48,15 +49,12 @@ public class DBN  {
     private static Updater updater = Updater.ADAM;
 
     private Language language = Language.ENGLISH;
-    private File testFile = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/supervised/pan15/english" +
-            "/english-test-short.csv");
-    private File trainFile = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/supervised/pan15/english" +
-            "/english-train-short.csv");
+    private File testFile = new File(Config.PATH + "/english/english-test-short.csv");
+    private File trainFile = new File(Config.PATH +"/english/english-train-short.csv");
     static String directory = "/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/early-stopping/";
 
     private int idxFrom = 2;
     private int idxTo = 6;
-    private ElementsLearningAlgorithm<VocabWord> learningAlgorithm = new CBOW<>();
     private Model inputModel;
 
     public DBN(Language language, Model model, String testFile, String trainFile) {
