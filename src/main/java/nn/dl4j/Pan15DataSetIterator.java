@@ -1,5 +1,7 @@
 package nn.dl4j;
 
+import nlp.Pan15Doc2Vec;
+import nlp.Pan15Tweet2Vec;
 import org.datavec.api.io.WritableConverter;
 import org.datavec.api.io.converters.SelfWritableConverter;
 import org.datavec.api.records.reader.RecordReader;
@@ -29,9 +31,11 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
     protected DataSet last;
     protected boolean regression = false;
     protected Language language = Language.ENGLISH;
-    int maxlen = Pan15Word2Vec.VEC_SIZE;
+    int maxlen = Pan15Doc2Vec.VEC_LENGTH;
 
     private Pan15Word2Vec pan15Word2Vec = new Pan15Word2Vec();
+    private Pan15Doc2Vec pan15Doc2Vec = new Pan15Doc2Vec();
+    private Pan15Tweet2Vec pan15Tweet2Vec = new Pan15Tweet2Vec();
     private Pan15SentencePreProcessor preProcessor = new Pan15SentencePreProcessor();
 
     /**
@@ -117,7 +121,9 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
                         if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
                             return new DataSet(Nd4j.zeros(1, maxlen),Nd4j.zeros(1, (labelIndexTo - labelIndex + 1))) ;
 
-                        featureVector = pan15Word2Vec.getSentence2VecSum(value, language);
+//                        featureVector = pan15Word2Vec.getSentence2VecBigramModel(value, language);
+                        featureVector = pan15Doc2Vec.getDoc2Vec(current.toString().substring(1,current.toString()
+                                .lastIndexOf('\"')), language);
                     }
                 }
             }
@@ -150,7 +156,9 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
             String value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
             if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
                 return new DataSet(Nd4j.zeros(1, maxlen), Nd4j.zeros(1, 1)) ;
-            featureVector = pan15Word2Vec.getSentence2VecSum(value, language);
+//            featureVector = pan15Word2Vec.getSentence2VecBigramModel(value, language);
+            featureVector = pan15Doc2Vec.getDoc2Vec(current.toString().substring(1,current.toString()
+                    .lastIndexOf('\"')), language);
         }
 
         return new DataSet(featureVector, label);

@@ -34,7 +34,7 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
     private static HashMap<Language, Word2Vec> languageWord2VecMap = new HashMap<>();
     private TokenizerFactory t = new DefaultTokenizerFactory();
     private HashMap<Language, HashMap<String, Pan15Author>> languages = Utils.getLanguages();
-    public static final Integer VEC_SIZE = 250;
+    public static final Integer VEC_LENGTH = 250;
     private ElementsLearningAlgorithm<VocabWord> learningAlgorithm = new CBOW<>();
 
     public Pan15Word2Vec() {
@@ -64,7 +64,7 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
             Word2Vec vec = new Word2Vec.Builder().elementsLearningAlgorithm(learningAlgorithm)
                     .minWordFrequency(6)
                     .iterations(15)
-                    .layerSize(VEC_SIZE)
+                    .layerSize(VEC_LENGTH)
                     .seed(42)
                     .windowSize(5)
                     .iterate(iter)
@@ -111,7 +111,7 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
                 for(int j = 0; j < vec.length; j++) vec[j] *= tfidf[i];
             }
         }
-        INDArray featureVector = Nd4j.zeros(1, VEC_SIZE);
+        INDArray featureVector = Nd4j.zeros(1, VEC_LENGTH);
         for (double[] vector : wordEmbeddings) {
             if (vector != null) {
                 INDArray vec = Nd4j.create(vector);
@@ -123,10 +123,10 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
 
     public INDArray getSentence2VecBigramModel(String sentence, Language language) {
         List<double[]> wordEmbeddings = getWordEmbeddings(sentence, language);
-        INDArray featureVector = Nd4j.zeros(1, VEC_SIZE);
+        INDArray featureVector = Nd4j.zeros(1, VEC_LENGTH);
         for (int i = 1; i < wordEmbeddings.size(); i++) {
-            INDArray prev = wordEmbeddings.get(i-1) == null ? Nd4j.zeros(1, VEC_SIZE) : Nd4j.create(wordEmbeddings.get(i-1));
-            INDArray curr = wordEmbeddings.get(i) == null ? Nd4j.zeros(1, VEC_SIZE) : Nd4j.create(wordEmbeddings.get(i));
+            INDArray prev = wordEmbeddings.get(i-1) == null ? Nd4j.zeros(1, VEC_LENGTH) : Nd4j.create(wordEmbeddings.get(i-1));
+            INDArray curr = wordEmbeddings.get(i) == null ? Nd4j.zeros(1, VEC_LENGTH) : Nd4j.create(wordEmbeddings.get(i));
             INDArray tanhSum = Transforms.tanh(prev.add(curr));
             featureVector = featureVector.add(tanhSum);
         }
@@ -134,7 +134,7 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
     }
     public INDArray getSentence2VecAvg(String sentence, Language language) {
         List<double[]> wordEmbeddings = getWordEmbeddings(sentence, language);
-        INDArray featureVector = Nd4j.zeros(1, VEC_SIZE);
+        INDArray featureVector = Nd4j.zeros(1, VEC_LENGTH);
         for (double[] vector : wordEmbeddings) {
             if (vector != null) {
                 INDArray vec = Nd4j.create(vector);
@@ -147,7 +147,7 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
 
     public INDArray getSentence2VecSum(String sentence, Language language) {
         List<double[]> wordEmbeddings = getWordEmbeddings(sentence, language);
-        INDArray featureVector = Nd4j.zeros(1, VEC_SIZE);
+        INDArray featureVector = Nd4j.zeros(1, VEC_LENGTH);
         for (double[] vector : wordEmbeddings) {
             if (vector != null) {
                 INDArray vec = Nd4j.create(vector);

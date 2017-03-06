@@ -161,7 +161,7 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
                 for (String doc : author.getDocuments()) {
                     StringBuilder sb = new StringBuilder();
                     sb.append('"').append(author.getId()).append('"').append(',');
-                    sb.append('"').append(doc.trim().replaceAll("\n", " ")).append('"').append(',');
+                    sb.append('"').append(doc.trim().replaceAll("\n", " ").replaceAll(",", "")).append('"').append(',');
                     sb.append(author.getPersonality().get(Personality.E)).append(',');
                     sb.append(author.getPersonality().get(Personality.N)).append(',');
                     sb.append(author.getPersonality().get(Personality.A)).append(',');
@@ -231,6 +231,6 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
     }
 
     public static void main(String... args) throws IOException, JAXBException, URISyntaxException {
-        System.out.println(new Pan15Parser().parseCSVCorpus().get(Language.ENGLISH).size());
+        new Pan15Parser().divideFiles();
     }
 }

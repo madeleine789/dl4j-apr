@@ -39,7 +39,7 @@ public class Pan15Word2VecTest {
         Word2Vec englishVec = new Word2Vec.Builder()
                 .minWordFrequency(6)
                 .iterations(15)
-                .layerSize(Pan15Word2Vec.VEC_SIZE)
+                .layerSize(Pan15Word2Vec.VEC_LENGTH)
                 .seed(42)
                 .windowSize(5)
                 .iterate(englishIter)

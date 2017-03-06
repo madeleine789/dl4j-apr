@@ -14,7 +14,7 @@ import static nlp.Utils.normalize;
 public class Pan15BagOfWords {
 
     private static HashMap<Language, LinkedHashMap<String, Integer>> bows = getBOWs();
-    private final static int VOCAB_LENGTH = 1000;
+    private final static int VOCAB_LENGTH = 5000;
 
 
     private static HashMap<Language, LinkedHashMap<String, Integer>> getBOWs() {
