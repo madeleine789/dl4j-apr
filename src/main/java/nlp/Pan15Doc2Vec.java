@@ -10,9 +10,9 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 
-public class Pan15Doc2Vec {
+public class Pan15Doc2Vec implements Model {
     private static HashMap<Language, HashMap<String, INDArray>> languageDoc2VecMap = loadDoc2VecsFromFile();
-    public static int VEC_LENGTH = 300;
+    private static int VEC_LENGTH = 300;
     private static HashMap<Language, HashMap<String, INDArray>> loadDoc2VecsFromFile() {
         HashMap<Language, HashMap<String, INDArray>> languageDoc2VecMap = new HashMap<>();
         for (Language language : Language.values()) {
@@ -48,5 +48,17 @@ public class Pan15Doc2Vec {
     public INDArray getDoc2Vec(String sentence, Language language) {
         sentence = sentence.replaceAll(",", "");
         return languageDoc2VecMap.get(language).getOrDefault(sentence, Nd4j.create(1, VEC_LENGTH));
+    }
+
+    @Override
+    public int getVecLength() {
+        return VEC_LENGTH;
+    }
+
+    @Override
+    public INDArray getVector(String sentence, Language language) {
+        if(sentence.endsWith("\"") && sentence.startsWith("\""))
+            sentence = sentence.substring(1, sentence.length() - 1);
+        return getDoc2Vec(sentence, language);
     }
 }

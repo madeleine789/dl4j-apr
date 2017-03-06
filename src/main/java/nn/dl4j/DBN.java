@@ -2,9 +2,7 @@ package nn.dl4j;
 
 import model.Language;
 import model.Personality;
-import nlp.Pan15Doc2Vec;
-import nlp.Pan15Tweet2Vec;
-import nlp.Pan15Word2Vec;
+import nlp.*;
 import org.datavec.api.records.reader.RecordReader;
 import org.datavec.api.records.reader.impl.csv.CSVRecordReader;
 import org.datavec.api.split.FileSplit;
@@ -59,15 +57,17 @@ public class DBN  {
     private int idxFrom = 2;
     private int idxTo = 6;
     private ElementsLearningAlgorithm<VocabWord> learningAlgorithm = new CBOW<>();
+    private Model inputModel;
 
-    public DBN(Language language, String testFile, String trainFile) {
+    public DBN(Language language, Model model, String testFile, String trainFile) {
         this.language = language;
+        this.inputModel = model;
         this.testFile = new File(testFile);
         this.trainFile = new File(trainFile);
     }
 
-    public DBN(Language language, String testFile, String trainFile, Personality label) {
-        this(language, testFile, trainFile);
+    public DBN(Language language, Model model, String testFile, String trainFile, Personality label) {
+        this(language, model, testFile, trainFile);
         this.idxFrom = label.getIndex();
         this.idxTo = label.getIndex();
         numOutputs = 1;
@@ -78,7 +78,7 @@ public class DBN  {
         log.info("Load data from " + trainFile.toString() );
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(trainFile));
-        DataSetIterator iter = new Pan15DataSetIterator(recordReader,500, idxFrom, idxTo, true, language, learningAlgorithm);
+        DataSetIterator iter = new Pan15DataSetIterator(recordReader,500, idxFrom, idxTo, true, language, inputModel);
 
             log.info("Train model....");
             while(iter.hasNext()) {
@@ -94,7 +94,7 @@ public class DBN  {
         RecordReader recordReader = new CSVRecordReader(1);
         log.info("Load verification data from " + testFile.toString() ) ;
         recordReader.initialize(new FileSplit(testFile));
-        DataSetIterator iter = new Pan15DataSetIterator(recordReader,100, idxFrom, idxTo,true, language, learningAlgorithm);
+        DataSetIterator iter = new Pan15DataSetIterator(recordReader,100, idxFrom, idxTo,true, language, inputModel);
 
         RegressionEvaluation eval = new RegressionEvaluation( numOutputs );
         while(iter.hasNext()) {
@@ -147,13 +147,13 @@ public class DBN  {
 
     public MultiLayerNetwork trainWithEarlyStopping() throws IOException,
             InterruptedException {
-        MultiLayerConfiguration myNetworkConfiguration = getConf(Pan15Word2Vec.VEC_LENGTH);
+        MultiLayerConfiguration myNetworkConfiguration = getConf(inputModel.getVecLength());
 
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(testFile));
-        DataSetIterator myTestData = new Pan15DataSetIterator(recordReader,100, 2,6,true, language, learningAlgorithm);;
+        DataSetIterator myTestData = new Pan15DataSetIterator(recordReader,100, 2,6,true, language, inputModel);;
         recordReader.initialize(new FileSplit(trainFile));
-        DataSetIterator myTrainData = new Pan15DataSetIterator(recordReader,500, 2,6,true, language, learningAlgorithm);;
+        DataSetIterator myTrainData = new Pan15DataSetIterator(recordReader,500, 2,6,true, language, inputModel);;
 
         EarlyStoppingConfiguration esConf = new EarlyStoppingConfiguration.Builder()
                 .epochTerminationConditions(new MaxEpochsTerminationCondition(300))
@@ -180,7 +180,7 @@ public class DBN  {
 
 
     public void runTrainingAndValidate() {
-        this.model = getModel(Pan15Doc2Vec.VEC_LENGTH);
+        this.model = getModel(inputModel.getVecLength());
         try {
             this.train();
             System.out.println(this.test());

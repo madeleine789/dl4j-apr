@@ -11,9 +11,9 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 
-public class Pan15Tweet2Vec {
+public class Pan15Tweet2Vec implements Model {
     private static HashMap<Language, HashMap<String, INDArray>> languageTweet2VecMap = loadTweet2VecsFromFile();
-    public final static int VEC_LENGTH = 500;
+    private final static int VEC_LENGTH = 500;
     private static HashMap<Language, HashMap<String, INDArray>> loadTweet2VecsFromFile() {
         HashMap<Language, HashMap<String, INDArray>> languageTweet2VecMap = new HashMap<>();
         for (Language language : Language.values()) {
@@ -49,5 +49,15 @@ public class Pan15Tweet2Vec {
     public INDArray getTweet2Vec(String sentence, Language language) {
         sentence = sentence.replaceAll(",", "");
         return languageTweet2VecMap.get(language).getOrDefault(sentence, Nd4j.create(1, VEC_LENGTH));
+    }
+
+    @Override
+    public int getVecLength() {
+        return VEC_LENGTH;
+    }
+
+    @Override
+    public INDArray getVector(String sentence, Language language) {
+        return getTweet2Vec(sentence, language);
     }
 }

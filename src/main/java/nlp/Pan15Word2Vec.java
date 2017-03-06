@@ -28,13 +28,13 @@ import java.util.stream.Collectors;
 
 import static nlp.Utils.getSentencesFromLanguage;
 
-public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
+public class Pan15Word2Vec implements Model {
 
     public static final Pan15SentencePreProcessor PREPROCESSOR = new Pan15SentencePreProcessor();
     private static HashMap<Language, Word2Vec> languageWord2VecMap = new HashMap<>();
     private TokenizerFactory t = new DefaultTokenizerFactory();
     private HashMap<Language, HashMap<String, Pan15Author>> languages = Utils.getLanguages();
-    public static final Integer VEC_LENGTH = 250;
+    private static final Integer VEC_LENGTH = 250;
     private ElementsLearningAlgorithm<VocabWord> learningAlgorithm = new CBOW<>();
 
     public Pan15Word2Vec() {
@@ -174,4 +174,13 @@ public class Pan15Word2Vec implements Word2VecBuilder<Pan15Parser> {
 
     }
 
+    @Override
+    public int getVecLength() {
+        return VEC_LENGTH;
+    }
+
+    @Override
+    public INDArray getVector(String sentence, Language language) {
+        return getSentence2VecAvg(sentence, language);
+    }
 }

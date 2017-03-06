@@ -11,10 +11,10 @@ import java.util.*;
 import static nlp.Utils.getSentencesFromLanguage;
 import static nlp.Utils.normalize;
 
-public class Pan15BagOfWords {
+public class Pan15BagOfWords implements Model {
 
     private static HashMap<Language, LinkedHashMap<String, Integer>> bows = getBOWs();
-    private final static int VOCAB_LENGTH = 5000;
+    private final static int VEC_LENGTH = 5000;
 
 
     private static HashMap<Language, LinkedHashMap<String, Integer>> getBOWs() {
@@ -42,7 +42,7 @@ public class Pan15BagOfWords {
         bagOfWords.entrySet().stream()
                 .sorted(Map.Entry.comparingByValue(Collections.reverseOrder())).forEach(
                 entry -> {
-                    if (count[0] < VOCAB_LENGTH) sorted.put(entry.getKey(), entry.getValue());
+                    if (count[0] < VEC_LENGTH) sorted.put(entry.getKey(), entry.getValue());
                     count[0]++;
                 }
         );
@@ -50,29 +50,37 @@ public class Pan15BagOfWords {
     }
 
     public static LinkedList<String> getBagOfWords(Language language) {
-        LinkedHashMap<String, Integer> bow = getBagOfWordsWithCounts(language);
+        LinkedHashMap<String, Integer> bow = bows.get(language);
         return new LinkedList<>(bow.keySet());
     }
 
-    public static INDArray getBinaryBoWVector(String sentence, Language language) {
+    public INDArray getBinaryBoWVector(String sentence, Language language) {
         LinkedList<String> keys = getBagOfWords(language);
         SentenceIterator iter = new CollectionSentenceIterator(new Pan15SentencePreProcessor(), Collections.singletonList(sentence));
         sentence = iter.nextSentence();
-        INDArray featureVector = Nd4j.zeros(1, VOCAB_LENGTH);
+        INDArray featureVector = Nd4j.zeros(1, VEC_LENGTH);
         for(String word : sentence.split("\\s+")) {
             word =  normalize(word);
-            System.out.println(keys.indexOf(word));
             int col = keys.indexOf(word);
-            if (col > -1)featureVector.putScalar(0, col, 1);
+            if (col > -1) featureVector.putScalar(0, col, 1);
         }
         return featureVector;
     }
 
-    public static INDArray getBoWVector(String sentence, Language language) {
+    public INDArray getBoWVector(String sentence, Language language) {
         INDArray featureVector = getBinaryBoWVector(sentence, language);
-        featureVector.divi(VOCAB_LENGTH);
+        featureVector.divi(VEC_LENGTH);
         System.out.println(featureVector.getDouble(0,0));
         return featureVector;
     }
 
+    @Override
+    public int getVecLength() {
+        return VEC_LENGTH;
+    }
+
+    @Override
+    public INDArray getVector(String sentence, Language language) {
+        return getBinaryBoWVector(sentence, language);
+    }
 }

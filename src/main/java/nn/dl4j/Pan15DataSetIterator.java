@@ -1,7 +1,6 @@
 package nn.dl4j;
 
-import nlp.Pan15Doc2Vec;
-import nlp.Pan15Tweet2Vec;
+import nlp.*;
 import org.datavec.api.io.WritableConverter;
 import org.datavec.api.io.converters.SelfWritableConverter;
 import org.datavec.api.records.reader.RecordReader;
@@ -9,12 +8,11 @@ import org.datavec.api.writable.Writable;
 import org.deeplearning4j.models.embeddings.learning.ElementsLearningAlgorithm;
 import org.deeplearning4j.models.embeddings.learning.impl.elements.SkipGram;
 import org.deeplearning4j.models.word2vec.VocabWord;
+import org.deeplearning4j.models.word2vec.Word2Vec;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.factory.Nd4j;
 import model.Language;
-import nlp.Pan15SentencePreProcessor;
-import nlp.Pan15Word2Vec;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,12 +29,14 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
     protected DataSet last;
     protected boolean regression = false;
     protected Language language = Language.ENGLISH;
-    int maxlen = Pan15Doc2Vec.VEC_LENGTH;
+//    int maxlen = Pan15Doc2Vec.VEC_LENGTH;
 
-    private Pan15Word2Vec pan15Word2Vec = new Pan15Word2Vec();
-    private Pan15Doc2Vec pan15Doc2Vec = new Pan15Doc2Vec();
-    private Pan15Tweet2Vec pan15Tweet2Vec = new Pan15Tweet2Vec();
+//    private Pan15Word2Vec pan15Word2Vec = new Pan15Word2Vec();
+//    private Pan15Doc2Vec pan15Doc2Vec = new Pan15Doc2Vec();
+//    private Pan15Tweet2Vec pan15Tweet2Vec = new Pan15Tweet2Vec();
+    private Pan15BagOfWords pan15BagOfWords = new Pan15BagOfWords();
     private Pan15SentencePreProcessor preProcessor = new Pan15SentencePreProcessor();
+    private Model model;
 
     /**
      * Main constructor for multi-label regression (i.e., regression with multiple outputs)
@@ -48,9 +48,9 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
      * @param regression        Require regression = true. Mainly included to avoid clashing with other constructors previously defined :/
      */
     public Pan15DataSetIterator(RecordReader recordReader, int batchSize, int labelIndexFrom, int labelIndexTo,
-                                boolean regression, Language language, ElementsLearningAlgorithm<VocabWord> learningAlgorithm){
+                                boolean regression, Language language, Model model){
         this(recordReader, new SelfWritableConverter(), batchSize, labelIndexFrom, labelIndexTo, -1, -1, regression,
-                language, learningAlgorithm);
+                language, model);
     }
 
     /**
@@ -62,9 +62,9 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
      * @param regression        Require regression = true. Mainly included to avoid clashing with other constructors previously defined :/
      */
     public Pan15DataSetIterator(RecordReader recordReader, int batchSize, int labelIndexFrom, boolean regression,
-                                Language language, ElementsLearningAlgorithm<VocabWord> learningAlgorithm){
+                                Language language, Model model){
         this(recordReader, new SelfWritableConverter(), batchSize, labelIndexFrom, labelIndexFrom,
-                -1, -1, regression, language, learningAlgorithm);
+                -1, -1, regression, language, model);
     }
 
 
@@ -81,7 +81,7 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
      */
     public Pan15DataSetIterator(RecordReader recordReader, WritableConverter converter, int batchSize, int labelIndexFrom,
                                  int labelIndexTo, int numPossibleLabels, int maxNumBatches, boolean regression,
-                                 Language language, ElementsLearningAlgorithm<VocabWord> learningAlgorithm) {
+                                 Language language, Model model) {
         super(recordReader, batchSize, maxNumBatches);
         this.recordReader = recordReader;
         this.converter = converter;
@@ -92,7 +92,7 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
         this.numPossibleLabels = numPossibleLabels;
         this.regression = regression;
         this.language = language;
-        this.pan15Word2Vec = new Pan15Word2Vec(learningAlgorithm);
+        this.model = model;
     }
 
     public DataSet getDataSet(List<Writable> record) {
@@ -116,14 +116,17 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
                     if (label == null) label = Nd4j.create(1, (labelIndexTo - labelIndex + 1));
                     label.putScalar(labelCount++, current.toDouble());
                 } else {
-                    String value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
                     if (featureVector == null) {
-                        if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
-                            return new DataSet(Nd4j.zeros(1, maxlen),Nd4j.zeros(1, (labelIndexTo - labelIndex + 1))) ;
-
-//                        featureVector = pan15Word2Vec.getSentence2VecBigramModel(value, language);
-                        featureVector = pan15Doc2Vec.getDoc2Vec(current.toString().substring(1,current.toString()
-                                .lastIndexOf('\"')), language);
+                        String value = current.toString();
+                        if (model instanceof Word2Vec) {
+                            value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
+                            Pan15Word2Vec pan15Word2Vec = (Pan15Word2Vec) model;
+                            if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
+                                return new DataSet(Nd4j.zeros(1, model.getVecLength()),Nd4j.zeros(1, (labelIndexTo - labelIndex + 1))) ;
+                        } else if (model instanceof Pan15BagOfWords) {
+                            value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
+                        }
+                        featureVector = model.getVector(value, language);
                     }
                 }
             }
@@ -153,12 +156,18 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
             }
 
             current = currList.get(1);
-            String value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
-            if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
-                return new DataSet(Nd4j.zeros(1, maxlen), Nd4j.zeros(1, 1)) ;
-//            featureVector = pan15Word2Vec.getSentence2VecBigramModel(value, language);
-            featureVector = pan15Doc2Vec.getDoc2Vec(current.toString().substring(1,current.toString()
-                    .lastIndexOf('\"')), language);
+            if (featureVector == null) {
+                String value = current.toString();
+                if (model instanceof Word2Vec) {
+                    value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
+                    Pan15Word2Vec pan15Word2Vec = (Pan15Word2Vec) model;
+                    if(pan15Word2Vec.getWordEmbeddings(value, language).stream().noneMatch(Objects::nonNull))
+                        return new DataSet(Nd4j.zeros(1, model.getVecLength()),Nd4j.zeros(1, (labelIndexTo - labelIndex + 1))) ;
+                } else if (model instanceof Pan15BagOfWords) {
+                    value = preProcessor.preProcess(current.toString().substring(1,current.toString().lastIndexOf('\"')));
+                }
+                featureVector = model.getVector(value, language);
+            }
         }
 
         return new DataSet(featureVector, label);
