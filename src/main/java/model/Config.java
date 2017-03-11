@@ -1,7 +1,6 @@
 package model;
 
-import nlp.Model;
-import nlp.Pan15BagOfWords;
+import nlp.model.*;
 
 public final class Config {
     public static final String PATH = "/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/supervised/pan15";

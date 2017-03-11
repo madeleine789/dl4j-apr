@@ -3,7 +3,7 @@ package nn.dl4j;
 import model.Config;
 import model.Language;
 import model.Personality;
-import nlp.*;
+import nlp.model.Model;
 import org.datavec.api.records.reader.RecordReader;
 import org.datavec.api.records.reader.impl.csv.CSVRecordReader;
 import org.datavec.api.split.FileSplit;
@@ -14,10 +14,6 @@ import org.deeplearning4j.earlystopping.termination.MaxEpochsTerminationConditio
 import org.deeplearning4j.earlystopping.termination.MaxTimeIterationTerminationCondition;
 import org.deeplearning4j.earlystopping.trainer.EarlyStoppingTrainer;
 import org.deeplearning4j.eval.RegressionEvaluation;
-import org.deeplearning4j.models.embeddings.learning.ElementsLearningAlgorithm;
-import org.deeplearning4j.models.embeddings.learning.impl.elements.CBOW;
-import org.deeplearning4j.models.embeddings.learning.impl.elements.SkipGram;
-import org.deeplearning4j.models.word2vec.VocabWord;
 import org.deeplearning4j.nn.api.Layer;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.GradientNormalization;
@@ -27,6 +23,7 @@ import org.deeplearning4j.nn.conf.Updater;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
 import org.deeplearning4j.nn.conf.layers.RBM;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
@@ -45,7 +42,10 @@ public class DBN  {
     private MultiLayerNetwork model;
     private static int numOutputs = 5;
     private static int iterations = 100;
-    private static LossFunctions.LossFunction lossFunction = LossFunctions.LossFunction.MSE;
+    private static int seed = 42;
+    private static int listenerFreq = 1000;
+    private static int batchSize = 128;
+    private static LossFunctions.LossFunction lossFunction = LossFunctions.LossFunction.RECONSTRUCTION_CROSSENTROPY;
     private static Updater updater = Updater.ADAM;
 
     private Language language = Language.ENGLISH;
@@ -55,6 +55,7 @@ public class DBN  {
 
     private int idxFrom = 2;
     private int idxTo = 6;
+    private boolean regression = true;
     private Model inputModel;
 
     public DBN(Language language, Model model, String testFile, String trainFile) {
@@ -62,6 +63,7 @@ public class DBN  {
         this.inputModel = model;
         this.testFile = new File(testFile);
         this.trainFile = new File(trainFile);
+        regression = true;
     }
 
     public DBN(Language language, Model model, String testFile, String trainFile, Personality label) {
@@ -69,6 +71,15 @@ public class DBN  {
         this.idxFrom = label.getIndex();
         this.idxTo = label.getIndex();
         numOutputs = 1;
+        regression = true;
+    }
+
+    public DBN(Language language, Model model, String testFile, String trainFile, int index) {
+        this(language, model, testFile, trainFile);
+        this.idxFrom = index;
+        this.idxTo = index;
+        numOutputs = 1;
+        regression = false;
     }
 
     public void train() throws Exception {
@@ -76,7 +87,7 @@ public class DBN  {
         log.info("Load data from " + trainFile.toString() );
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(trainFile));
-        DataSetIterator iter = new Pan15DataSetIterator(recordReader,500, idxFrom, idxTo, true, language, inputModel);
+        DataSetIterator iter = new Pan15DataSetIterator(recordReader,batchSize, idxFrom, idxTo, regression, language, inputModel);
 
             log.info("Train model....");
             while(iter.hasNext()) {
@@ -92,7 +103,7 @@ public class DBN  {
         RecordReader recordReader = new CSVRecordReader(1);
         log.info("Load verification data from " + testFile.toString() ) ;
         recordReader.initialize(new FileSplit(testFile));
-        DataSetIterator iter = new Pan15DataSetIterator(recordReader,100, idxFrom, idxTo,true, language, inputModel);
+        DataSetIterator iter = new Pan15DataSetIterator(recordReader,batchSize / 4, idxFrom, idxTo,true, language, inputModel);
 
         RegressionEvaluation eval = new RegressionEvaluation( numOutputs );
         while(iter.hasNext()) {
@@ -110,7 +121,6 @@ public class DBN  {
     }
 
     public static MultiLayerNetwork getModel(int numInputs) {
-        int seed = 42;
         MultiLayerConfiguration conf =  new NeuralNetConfiguration.Builder()
                 .seed(seed)
                 .iterations(iterations)
@@ -142,6 +152,43 @@ public class DBN  {
                 .build();
         return new MultiLayerNetwork(conf);
     }
+//    lossFunction = LossFunctions.LossFunction.MCXENT - multiclass classification
+//    lossFunction = LossFunctions.LossFunction.XENT - binary classification
+    public MultiLayerNetwork getClassificationModel(int numInputs, LossFunctions.LossFunction lossFunction) {
+        MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
+                .seed(seed)
+                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+                .gradientNormalizationThreshold(1.0)
+                .iterations(iterations)
+                .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+                .list()
+                .layer(0, new RBM.Builder().nIn(numInputs).nOut(2700)
+                        .activation("relu")
+                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
+                        .hiddenUnit(RBM.HiddenUnit.BINARY)
+                        .build())
+                .layer(1, new RBM.Builder().nIn(2700).nOut(2000)
+                        .activation("relu")
+                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
+                        .hiddenUnit(RBM.HiddenUnit.BINARY)
+                        .build())
+                .layer(2, new RBM.Builder().nIn(2000).nOut(1000)
+                        .activation("relu")
+                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
+                        .hiddenUnit(RBM.HiddenUnit.BINARY)
+                        .build())
+                .layer(3, new RBM.Builder().nIn(1000).nOut(200)
+                        .activation("relu")
+                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
+                        .hiddenUnit(RBM.HiddenUnit.BINARY)
+                        .build())
+                .layer(4, new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD).activation
+                        ("sigmoid")
+                        .nIn(200).nOut(numOutputs).build())
+                .pretrain(true).backprop(true)
+                .build();
+        return new MultiLayerNetwork(conf);
+    }
 
     public MultiLayerNetwork trainWithEarlyStopping() throws IOException,
             InterruptedException {
@@ -149,9 +196,9 @@ public class DBN  {
 
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(testFile));
-        DataSetIterator myTestData = new Pan15DataSetIterator(recordReader,100, 2,6,true, language, inputModel);;
+        DataSetIterator myTestData = new Pan15DataSetIterator(recordReader,100, 2,6,true, language, inputModel);
         recordReader.initialize(new FileSplit(trainFile));
-        DataSetIterator myTrainData = new Pan15DataSetIterator(recordReader,500, 2,6,true, language, inputModel);;
+        DataSetIterator myTrainData = new Pan15DataSetIterator(recordReader,500, 2,6,true, language, inputModel);
 
         EarlyStoppingConfiguration esConf = new EarlyStoppingConfiguration.Builder()
                 .epochTerminationConditions(new MaxEpochsTerminationCondition(300))
@@ -178,7 +225,16 @@ public class DBN  {
 
 
     public void runTrainingAndValidate() {
-        this.model = getModel(inputModel.getVecLength());
+        if (regression) {
+            this.model = getModel(inputModel.getVecLength());
+        } else {
+            LossFunctions.LossFunction lossFunction = (idxFrom == 7) ?
+                    LossFunctions.LossFunction.XENT : LossFunctions.LossFunction.MCXENT;
+            this.model = getClassificationModel(inputModel.getVecLength(), lossFunction);
+        }
+
+        model.init();
+        model.setListeners(Collections.singletonList(new ScoreIterationListener(listenerFreq)));
         try {
             this.train();
             System.out.println(this.test());

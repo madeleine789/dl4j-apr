@@ -1,4 +1,4 @@
-package nlp;
+package nlp.model;
 
 import model.Language;
 import org.nd4j.linalg.api.ndarray.INDArray;

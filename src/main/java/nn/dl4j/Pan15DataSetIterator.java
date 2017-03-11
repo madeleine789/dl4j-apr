@@ -1,10 +1,10 @@
 package nn.dl4j;
 
 import model.Language;
-import nlp.Model;
-import nlp.Pan15BagOfWords;
+import nlp.model.Model;
+import nlp.model.Pan15BagOfWords;
 import nlp.Pan15SentencePreProcessor;
-import nlp.Pan15Word2Vec;
+import nlp.model.Pan15Word2Vec;
 import org.datavec.api.io.WritableConverter;
 import org.datavec.api.io.converters.SelfWritableConverter;
 import org.datavec.api.records.reader.RecordReader;

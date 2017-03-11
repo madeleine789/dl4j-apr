@@ -1,7 +1,7 @@
 package parsing.pan15;
 
 import nlp.Pan15SentencePreProcessor;
-import nlp.Pan15Word2Vec;
+import nlp.model.Pan15Word2Vec;
 import org.junit.Test;
 import model.Author;
 import model.Language;

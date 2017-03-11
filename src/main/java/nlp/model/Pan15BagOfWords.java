@@ -1,6 +1,7 @@
-package nlp;
+package nlp.model;
 
 import model.Language;
+import nlp.Pan15SentencePreProcessor;
 import org.deeplearning4j.text.sentenceiterator.CollectionSentenceIterator;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
 import org.nd4j.linalg.api.ndarray.INDArray;
@@ -73,7 +74,15 @@ public class Pan15BagOfWords implements Model {
     }
 
     public INDArray getBoWVector(String sentence, Language language) {
-        INDArray featureVector = getBinaryBoWVector(sentence, language);
+        LinkedList<String> keys = getBagOfWords(language);
+        SentenceIterator iter = new CollectionSentenceIterator(new Pan15SentencePreProcessor(), Collections.singletonList(sentence));
+        sentence = iter.nextSentence();
+        INDArray featureVector = Nd4j.zeros(1, VEC_LENGTH);
+        for(String word : sentence.split("\\s+")) {
+            word =  normalize(word);
+            int col = keys.indexOf(word);
+            if (col > -1) featureVector.putScalar(0, col, featureVector.getColumn(col).getInt() + 1);
+        }
         featureVector.divi(VEC_LENGTH);
         System.out.println(featureVector.getDouble(0,0));
         return featureVector;

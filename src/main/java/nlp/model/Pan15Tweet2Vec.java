@@ -1,4 +1,4 @@
-package nlp;
+package nlp.model;
 
 import model.Language;
 import org.nd4j.linalg.api.ndarray.INDArray;
@@ -24,7 +24,7 @@ public class Pan15Tweet2Vec implements Model {
 
     static HashMap<String, INDArray> parseLanguage(Language language) {
         HashMap<String, INDArray> tweet2vecs = new HashMap<>();
-        File path = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/tweet2vec/" +
+        File path = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/better_tweet2vec/" +
                 language.getName() + "-tweet2vec.txt");
         try {
             List<String> lines = Files.readAllLines(path.toPath());

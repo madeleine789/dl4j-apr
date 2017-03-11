@@ -1,8 +1,9 @@
-package nlp;
+package nlp.model;
 
 import model.Language;
+import nlp.Pan15SentencePreProcessor;
+import nlp.Utils;
 import org.deeplearning4j.models.embeddings.learning.ElementsLearningAlgorithm;
-import org.deeplearning4j.models.embeddings.learning.impl.elements.CBOW;
 import org.deeplearning4j.models.embeddings.learning.impl.elements.GloVe;
 import org.deeplearning4j.models.embeddings.learning.impl.elements.SkipGram;
 import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
