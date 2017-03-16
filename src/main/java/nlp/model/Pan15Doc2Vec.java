@@ -11,9 +11,19 @@ import java.util.HashMap;
 import java.util.List;
 
 public class Pan15Doc2Vec implements Model {
-    private static HashMap<Language, HashMap<String, INDArray>> languageDoc2VecMap = loadDoc2VecsFromFile();
+
+    private HashMap<Language, HashMap<String, INDArray>> languageDoc2VecMap;
     private static int VEC_LENGTH = 300;
-    private static HashMap<Language, HashMap<String, INDArray>> loadDoc2VecsFromFile() {
+    private String pathName;
+
+    public Pan15Doc2Vec() {
+        pathName = "/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/doc2vec/";
+    }
+
+    public Pan15Doc2Vec(String p) {
+        pathName = p;
+    }
+    private HashMap<Language, HashMap<String, INDArray>> loadDoc2VecsFromFile() {
         HashMap<Language, HashMap<String, INDArray>> languageDoc2VecMap = new HashMap<>();
         for (Language language : Language.values()) {
             languageDoc2VecMap.put(language, parseLanguage(language));
@@ -21,9 +31,9 @@ public class Pan15Doc2Vec implements Model {
         return languageDoc2VecMap;
     }
 
-    static HashMap<String, INDArray> parseLanguage(Language language) {
+    HashMap<String, INDArray> parseLanguage(Language language) {
         HashMap<String, INDArray> doc2vecs = new HashMap<>();
-        File path = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/doc2vec/" +
+        File path = new File(pathName +
                 language.getName() + "-doc2vec.txt");
         try {
             System.out.println(Files.readAllLines(path.toPath()).size());
@@ -47,6 +57,7 @@ public class Pan15Doc2Vec implements Model {
 
     public INDArray getDoc2Vec(String sentence, Language language) {
         sentence = sentence.replaceAll(",", "");
+        if (languageDoc2VecMap == null) languageDoc2VecMap = loadDoc2VecsFromFile();
         return languageDoc2VecMap.get(language).getOrDefault(sentence, Nd4j.create(1, VEC_LENGTH));
     }
 

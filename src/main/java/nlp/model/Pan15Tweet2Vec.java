@@ -12,9 +12,18 @@ import java.util.HashMap;
 import java.util.List;
 
 public class Pan15Tweet2Vec implements Model {
-    private static HashMap<Language, HashMap<String, INDArray>> languageTweet2VecMap = loadTweet2VecsFromFile();
+    private HashMap<Language, HashMap<String, INDArray>> languageTweet2VecMap;
     private final static int VEC_LENGTH = 500;
-    private static HashMap<Language, HashMap<String, INDArray>> loadTweet2VecsFromFile() {
+    private String pathName;
+
+    public Pan15Tweet2Vec() {
+        pathName = "/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/better_tweet2vec/";
+    }
+
+    public Pan15Tweet2Vec(String p) {
+        pathName = p;
+    }
+    private HashMap<Language, HashMap<String, INDArray>> loadTweet2VecsFromFile() {
         HashMap<Language, HashMap<String, INDArray>> languageTweet2VecMap = new HashMap<>();
         for (Language language : Language.values()) {
             languageTweet2VecMap.put(language, parseLanguage(language));
@@ -22,9 +31,9 @@ public class Pan15Tweet2Vec implements Model {
         return languageTweet2VecMap;
     }
 
-    static HashMap<String, INDArray> parseLanguage(Language language) {
+    HashMap<String, INDArray> parseLanguage(Language language) {
         HashMap<String, INDArray> tweet2vecs = new HashMap<>();
-        File path = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/better_tweet2vec/" +
+        File path = new File(pathName +
                 language.getName() + "-tweet2vec.txt");
         try {
             List<String> lines = Files.readAllLines(path.toPath());
@@ -48,6 +57,7 @@ public class Pan15Tweet2Vec implements Model {
 
     public INDArray getTweet2Vec(String sentence, Language language) {
         sentence = sentence.replaceAll(",", "");
+        if (languageTweet2VecMap == null) languageTweet2VecMap = loadTweet2VecsFromFile();
         return languageTweet2VecMap.get(language).getOrDefault(sentence, Nd4j.create(1, VEC_LENGTH));
     }
 
