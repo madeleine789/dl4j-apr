@@ -35,7 +35,7 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
 
      static HashMap<String, Pan15Author> parseLanguage(Language language) {
         HashMap<String, Pan15Author> authors = new HashMap<>();
-        File path = new File("/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/supervised/pan15/corpora/" +
+        File path = new File("./src/main/resources/supervised/pan15/corpora/" +
                 language.getName() + ".csv");
         try {
             Files.readAllLines(path.toPath()).stream().filter(l -> ! l.startsWith("\"AUTHID\"")).forEach(l -> {
@@ -122,7 +122,7 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
         author.setGender(truth[1]);
         author.setAge(truth[2]);
         author.setPersonality(Personality.E, Double.parseDouble(truth[3]));
-        author.setPersonality(Personality.N, -1 * Double.parseDouble(truth[4])); // this is stable - opposite
+        author.setPersonality(Personality.N, Double.parseDouble(truth[4]));
         author.setPersonality(Personality.A, Double.parseDouble(truth[5]));
         author.setPersonality(Personality.C, Double.parseDouble(truth[6]));
         author.setPersonality(Personality.O, Double.parseDouble(truth[7]));
@@ -206,6 +206,10 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
                     pw2.write("\"AUTHID\",\"STATUS\",\"sEXT\",\"sNEU\",\"sAGR\",\"sCON\",\"sOPN\",\"GENDER\",\"AGE\"\n");
                     for (String id : authors.keySet()) {
                         List<String> lines = authors.get(id);
+                        Collections.shuffle(lines);
+                        int half = (int) (lines.size() / 3);
+
+                        lines = lines.subList(0, half);
                         int train = (int) (lines.size() * 0.7);
                         List<String> training = lines.subList(0, train + 1);
                         List<String> testing = lines.subList(train + 1, lines.size());

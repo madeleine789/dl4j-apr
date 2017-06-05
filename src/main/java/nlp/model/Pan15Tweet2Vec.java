@@ -17,7 +17,7 @@ public class Pan15Tweet2Vec implements Model {
     private String pathName;
 
     public Pan15Tweet2Vec() {
-        pathName = "/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/better_tweet2vec/";
+        pathName = "./src/main/resources/tweet2vec/";
     }
 
     public Pan15Tweet2Vec(String p) {
@@ -31,7 +31,7 @@ public class Pan15Tweet2Vec implements Model {
         return languageTweet2VecMap;
     }
 
-    HashMap<String, INDArray> parseLanguage(Language language) {
+    public HashMap<String, INDArray> parseLanguage(Language language) {
         HashMap<String, INDArray> tweet2vecs = new HashMap<>();
         File path = new File(pathName +
                 language.getName() + "-tweet2vec.txt");

@@ -2,19 +2,21 @@ package nn.dl4j;
 
 import model.Config;
 import model.Language;
-import model.Personality;
 import nlp.model.Model;
+import nlp.model.Pan15BagOfWords;
+import nlp.model.Pan15Doc2Vec;
+import nlp.model.Pan15Tweet2Vec;
 import org.datavec.api.records.reader.RecordReader;
 import org.datavec.api.records.reader.impl.csv.CSVRecordReader;
 import org.datavec.api.split.FileSplit;
 import org.deeplearning4j.earlystopping.EarlyStoppingConfiguration;
+import org.deeplearning4j.earlystopping.EarlyStoppingModelSaver;
 import org.deeplearning4j.earlystopping.EarlyStoppingResult;
+import org.deeplearning4j.earlystopping.saver.InMemoryModelSaver;
 import org.deeplearning4j.earlystopping.scorecalc.DataSetLossCalculator;
-import org.deeplearning4j.earlystopping.termination.MaxEpochsTerminationCondition;
-import org.deeplearning4j.earlystopping.termination.MaxTimeIterationTerminationCondition;
-import org.deeplearning4j.earlystopping.trainer.EarlyStoppingTrainer;
+import org.deeplearning4j.earlystopping.termination.ScoreImprovementEpochTerminationCondition;
+import org.deeplearning4j.earlystopping.trainer.IEarlyStoppingTrainer;
 import org.deeplearning4j.eval.RegressionEvaluation;
-import org.deeplearning4j.nn.api.Layer;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
@@ -23,98 +25,129 @@ import org.deeplearning4j.nn.conf.Updater;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
 import org.deeplearning4j.nn.conf.layers.RBM;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
-import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
+import org.deeplearning4j.nn.weights.WeightInit;
+import org.deeplearning4j.parallelism.EarlyStoppingParallelTrainer;
+import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.concurrent.TimeUnit;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
-public class DBN  {
+public class DBN {
 
     private static Logger log = LoggerFactory.getLogger(DBN.class);
     private MultiLayerNetwork model;
     private static int numOutputs = 5;
-    private static int iterations = 100;
+    private static int numEpochs = 15;
+    private static int iterations = 10;
     private static int seed = 42;
-    private static int listenerFreq = 1000;
-    private static int batchSize = 128;
-    private static LossFunctions.LossFunction lossFunction = LossFunctions.LossFunction.RECONSTRUCTION_CROSSENTROPY;
+    private static int batchSize = 500;
+    private static LossFunctions.LossFunction lossFunction = LossFunctions.LossFunction.MSE;
     private static Updater updater = Updater.ADAM;
 
     private Language language = Language.ENGLISH;
     private File testFile = new File(Config.PATH + "/english/english-test-short.csv");
     private File trainFile = new File(Config.PATH +"/english/english-train-short.csv");
-    static String directory = "/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/early-stopping/";
 
     private int idxFrom = 2;
     private int idxTo = 6;
     private boolean regression = true;
-    private Model inputModel;
+    private boolean modelFromJson = true;
+    private Model inputModel = Config.MODEL;
 
-    public DBN(Language language, Model model, String testFile, String trainFile) {
+    public DBN(Language language, String testFile, String trainFile, boolean modelFromJson) {
         this.language = language;
-        this.inputModel = model;
         this.testFile = new File(testFile);
         this.trainFile = new File(trainFile);
         regression = true;
+        this.modelFromJson = modelFromJson;
     }
 
-    public DBN(Language language, Model model, String testFile, String trainFile, Personality label) {
-        this(language, model, testFile, trainFile);
-        this.idxFrom = label.getIndex();
-        this.idxTo = label.getIndex();
-        numOutputs = 1;
-        regression = true;
-    }
-
-    public DBN(Language language, Model model, String testFile, String trainFile, int index) {
-        this(language, model, testFile, trainFile);
-        this.idxFrom = index;
-        this.idxTo = index;
-        numOutputs = 1;
-        regression = false;
-    }
-
-    public void train() throws Exception {
-
+    public void trainWithEarlyStopping() throws Exception {
+        log.info("TRAINING WITH EARLY STOPPING");
         log.info("Load data from " + trainFile.toString() );
+        if (modelFromJson) {
+            this.model = getModelFromJson();
+        } else {
+            this.model = getModel(inputModel.getVecLength());
+        }
+
+        model.conf().setPretrain(false);
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(trainFile));
+
         DataSetIterator iter = new Pan15DataSetIterator(recordReader,batchSize, idxFrom, idxTo, regression, language, inputModel);
 
-            log.info("Train model....");
-            while(iter.hasNext()) {
-                DataSet ds = iter.next();
-                model.fit( ds ) ;
-            }
-            log.info("Training done.");
-    }
+        model.init();
+        log.info("Pretrain model....");
+        if (language == Language.ENGLISH || language == Language.SPANISH) {
+            INDArray[] pretrainingData = preparePretrainData(language);
+            for (INDArray batch : pretrainingData)  model.pretrain(batch);
+        }
+        log.info("Train model....");
 
+        EarlyStoppingModelSaver<MultiLayerNetwork> saver = new InMemoryModelSaver<>();
+        EarlyStoppingConfiguration<MultiLayerNetwork> esConf =
+                new EarlyStoppingConfiguration.Builder<MultiLayerNetwork>()
+                        .epochTerminationConditions(new ScoreImprovementEpochTerminationCondition(10))
+                        .scoreCalculator(new DataSetLossCalculator(iter, true))
+                        .evaluateEveryNEpochs(2).modelSaver(saver).build();
 
-    public String test() throws Exception {
+        IEarlyStoppingTrainer<MultiLayerNetwork> trainer =
+                new EarlyStoppingParallelTrainer<>(esConf, model, iter, null, 2, 6, 1);
+//        EarlyStoppingTrainer trainer = new EarlyStoppingTrainer(esConf,model,iter);
+        EarlyStoppingResult<MultiLayerNetwork> result = trainer.fit();
+        log.info("Termination reason: " + result.getTerminationReason());
+        log.info("Termination details: " + result.getTerminationDetails());
+        log.info("Total epochs: " + result.getTotalEpochs());
+        log.info("Best epoch number: " + result.getBestModelEpoch());
+        log.info("Score at best epoch: " + result.getBestModelScore());
 
-        RecordReader recordReader = new CSVRecordReader(1);
+        model = result.getBestModel();
+
+        log.info("Training done.");
+
+        recordReader = new CSVRecordReader(1);
         log.info("Load verification data from " + testFile.toString() ) ;
         recordReader.initialize(new FileSplit(testFile));
-        DataSetIterator iter = new Pan15DataSetIterator(recordReader,batchSize / 4, idxFrom, idxTo,true, language, inputModel);
+        iter = new Pan15DataSetIterator(recordReader,batchSize / 5, idxFrom, idxTo,true, language, inputModel);
 
         RegressionEvaluation eval = new RegressionEvaluation( numOutputs );
         while(iter.hasNext()) {
             DataSet ds = iter.next();
-            INDArray predict2 = model.output(ds.getFeatureMatrix(), Layer.TrainingMode.TEST);
-            eval.eval(ds.getLabels(), predict2);
+            ds.shuffle();
+            INDArray output = model.output(ds.getFeatureMatrix());
+            eval.eval(ds.getLabels(), output);
         }
         log.info("Testing done");
+        System.out.println(eval.stats());
 
-        return eval.stats() ;
+        try{
+            String date = new SimpleDateFormat("yyyy-MM-dd-HHmmssSSS").format(new Date());
+            PrintWriter writer = new PrintWriter(language.getName() + date + "-es.txt", "UTF-8");
+            writer.println(eval.stats());
+            writer.println();
+            writer.println(model.conf().toString());
+            writer.close();
+        } catch (IOException e) {
+            log.info("Error saving to file");
+        }
+
     }
+
+
 
     public static MultiLayerConfiguration getConf(int numInputs) {
         return getModel(numInputs).getLayerWiseConfigurations();
@@ -126,124 +159,78 @@ public class DBN  {
                 .iterations(iterations)
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
                 .gradientNormalizationThreshold(1.0)
-//                .regularization(true)
+                .regularization(true)
 //                .l2(0.001)
-//                .dropOut(0.2)
+                .dropOut(0.5)
                 .updater(updater)
                 .adamMeanDecay(0.5)
                 .adamVarDecay(0.5)
+                .weightInit(WeightInit.XAVIER)
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .list()
                 .layer(0, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
-                        .nIn(numInputs).nOut(2750)
-                        .activation("relu").lossFunction(lossFunction).build())
+                        .nIn(numInputs).nOut(2750).dropOut(0.75)
+                        .activation(Activation.RELU).lossFunction(lossFunction).build())
                 .layer(1, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
                         .nIn(2750).nOut(2000)
-                        .activation("relu").lossFunction(lossFunction).build())
+                        .activation(Activation.RELU).lossFunction(lossFunction).build())
                 .layer(2, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
                         .nIn(2000).nOut(1000)
-                        .activation("relu").lossFunction(lossFunction).build())
+                        .activation(Activation.RELU).lossFunction(lossFunction).build())
                 .layer(3, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
                         .nIn(1000).nOut(200)
-                        .activation("relu").lossFunction(lossFunction).build())
+                        .activation(Activation.RELU).lossFunction(lossFunction).build())
                 .layer(4, new OutputLayer.Builder(lossFunction)
-                        .nIn(200).nOut(numOutputs).updater(updater).adamMeanDecay(0.6).adamVarDecay(0.7).build())
-                .pretrain(true).backprop(true)
-                .build();
-        return new MultiLayerNetwork(conf);
-    }
-//    lossFunction = LossFunctions.LossFunction.MCXENT - multiclass classification
-//    lossFunction = LossFunctions.LossFunction.XENT - binary classification
-    public MultiLayerNetwork getClassificationModel(int numInputs, LossFunctions.LossFunction lossFunction) {
-        MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
-                .seed(seed)
-                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
-                .gradientNormalizationThreshold(1.0)
-                .iterations(iterations)
-                .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-                .list()
-                .layer(0, new RBM.Builder().nIn(numInputs).nOut(2700)
-                        .activation("relu")
-                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
-                        .hiddenUnit(RBM.HiddenUnit.BINARY)
+                        .nIn(200).nOut(numOutputs).updater(updater)
+                        .adamMeanDecay(0.6).adamVarDecay(0.7)
                         .build())
-                .layer(1, new RBM.Builder().nIn(2700).nOut(2000)
-                        .activation("relu")
-                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
-                        .hiddenUnit(RBM.HiddenUnit.BINARY)
-                        .build())
-                .layer(2, new RBM.Builder().nIn(2000).nOut(1000)
-                        .activation("relu")
-                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
-                        .hiddenUnit(RBM.HiddenUnit.BINARY)
-                        .build())
-                .layer(3, new RBM.Builder().nIn(1000).nOut(200)
-                        .activation("relu")
-                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
-                        .hiddenUnit(RBM.HiddenUnit.BINARY)
-                        .build())
-                .layer(4, new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD).activation
-                        ("sigmoid")
-                        .nIn(200).nOut(numOutputs).build())
                 .pretrain(true).backprop(true)
                 .build();
         return new MultiLayerNetwork(conf);
     }
 
-    public MultiLayerNetwork trainWithEarlyStopping() throws IOException,
-            InterruptedException {
-        MultiLayerConfiguration myNetworkConfiguration = getConf(inputModel.getVecLength());
+    private MultiLayerNetwork getModelFromJson() throws IOException {
+        String path = "./src/main/resources/models/d2v/" + language.getName() + "-model.json";
+        byte[] encoded = Files.readAllBytes(Paths.get(path));
+        String json =  new String(encoded, StandardCharsets.UTF_8);
+        System.out.println(json);
+        return new MultiLayerNetwork(MultiLayerConfiguration.fromJson(json));
 
-        RecordReader recordReader = new CSVRecordReader(1);
-        recordReader.initialize(new FileSplit(testFile));
-        DataSetIterator myTestData = new Pan15DataSetIterator(recordReader,100, 2,6,true, language, inputModel);
-        recordReader.initialize(new FileSplit(trainFile));
-        DataSetIterator myTrainData = new Pan15DataSetIterator(recordReader,500, 2,6,true, language, inputModel);
-
-        EarlyStoppingConfiguration esConf = new EarlyStoppingConfiguration.Builder()
-                .epochTerminationConditions(new MaxEpochsTerminationCondition(300))
-                .iterationTerminationConditions(new MaxTimeIterationTerminationCondition(20, TimeUnit.MINUTES))
-                .scoreCalculator(new DataSetLossCalculator(myTestData, true))
-                .evaluateEveryNEpochs(5)
-                .build();
-
-        EarlyStoppingTrainer trainer = new EarlyStoppingTrainer(esConf,myNetworkConfiguration,myTrainData);
-
-        //Conduct early stopping training:
-        EarlyStoppingResult result = trainer.fit();
-
-        //Print out the results:
-        System.out.println("Termination reason: " + result.getTerminationReason());
-        System.out.println("Termination details: " + result.getTerminationDetails());
-        System.out.println("Total epochs: " + result.getTotalEpochs());
-        System.out.println("Best epoch number: " + result.getBestModelEpoch());
-        System.out.println("Score at best epoch: " + result.getBestModelScore());
-
-        //Get the best model:
-        return (MultiLayerNetwork) result.getBestModel();
     }
 
-
-    public void runTrainingAndValidate() {
-        if (regression) {
-            this.model = getModel(inputModel.getVecLength());
-        } else {
-            LossFunctions.LossFunction lossFunction = (idxFrom == 7) ?
-                    LossFunctions.LossFunction.XENT : LossFunctions.LossFunction.MCXENT;
-            this.model = getClassificationModel(inputModel.getVecLength(), lossFunction);
+    INDArray[] preparePretrainData(Language language) {
+        int slices = 8;
+        List<INDArray> indArrays = getData(language);
+        Collections.shuffle(indArrays);
+        INDArray[] pretrainData = new INDArray[slices];
+        int n = indArrays.size()/slices;
+        System.out.println(indArrays.size());
+        for(int i = 0, j = 0; i < slices && j < indArrays.size(); i++) {
+            System.out.println(j + " " + (j+n));
+            if (j+n < indArrays.size()) pretrainData[i] = Nd4j.vstack(indArrays.subList(j, j+n));
+            else pretrainData[i] = Nd4j.vstack(indArrays.subList(j, indArrays.size()));
+            j = j+n;
         }
-
-        model.init();
-        model.setListeners(Collections.singletonList(new ScoreIterationListener(listenerFreq)));
-        try {
-            this.train();
-            System.out.println(this.test());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        return pretrainData;
     }
+
+    List<INDArray> getData(Language language) {
+        Collection<INDArray> values = null;
+        if (Config.MODEL instanceof  Pan15Tweet2Vec) {
+            Pan15Tweet2Vec p = new Pan15Tweet2Vec("./src/main/resources/tweet2vec/pretr/");
+            values = p.parseLanguage(language).values();
+        } else if (Config.MODEL instanceof Pan15Doc2Vec) {
+            Pan15Doc2Vec p = new Pan15Doc2Vec("./src/main/resources/doc2vec/pretr/");
+            values = p.parseLanguage(language).values();
+        } else if (Config.MODEL instanceof Pan15BagOfWords) {
+            values = ((Pan15BagOfWords) Config.MODEL).parseLanguage(language);
+        }
+        return new ArrayList<>(values);
+    }
+
 
     public void setModel(MultiLayerNetwork model) {
         this.model = model;
     }
+
 }

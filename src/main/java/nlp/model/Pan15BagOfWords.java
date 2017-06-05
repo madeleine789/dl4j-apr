@@ -6,7 +6,11 @@ import org.deeplearning4j.text.sentenceiterator.CollectionSentenceIterator;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.ops.transforms.Transforms;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.*;
 
 import static nlp.Utils.getSentencesFromLanguage;
@@ -16,10 +20,10 @@ public class Pan15BagOfWords implements Model {
 
     private static HashMap<Language, LinkedHashMap<String, Integer>> bows = getBOWs();
     private final static int VEC_LENGTH = 5000;
-    private boolean binaryBow = true;
+    private boolean bigramBow = true;
 
-    public Pan15BagOfWords(boolean binaryBow) {
-        this.binaryBow = binaryBow;
+    public Pan15BagOfWords(boolean bigramBow) {
+        this.bigramBow = bigramBow;
     }
 
 
@@ -81,11 +85,56 @@ public class Pan15BagOfWords implements Model {
         for(String word : sentence.split("\\s+")) {
             word =  normalize(word);
             int col = keys.indexOf(word);
-            if (col > -1) featureVector.putScalar(0, col, featureVector.getColumn(col).getInt() + 1);
+            if (col > -1)
+                featureVector.putScalar(0, col, featureVector.getColumn(col).getInt(0) + 1);
         }
         featureVector.divi(VEC_LENGTH);
-        System.out.println(featureVector.getDouble(0,0));
         return featureVector;
+    }
+
+    private List<INDArray> getWordEmbeddings(String sentence, Language language) {
+        LinkedList<String> keys = getBagOfWords(language);
+        List<INDArray> embeddings = new LinkedList<>();
+        for(String word : sentence.split("\\s+")) {
+            INDArray featureVector = Nd4j.zeros(1, VEC_LENGTH);
+            word =  normalize(word);
+            int col = keys.indexOf(word);
+            if (col > -1) featureVector.putScalar(0, col, featureVector.getColumn(col).getFloat(0) + 1);
+            featureVector.divi(VEC_LENGTH);
+            embeddings.add(featureVector);
+        }
+        return embeddings;
+    }
+
+    public INDArray getBoWBigramModel(String sentence, Language language) {
+        List<INDArray> wordEmbeddings = getWordEmbeddings(sentence, language);
+        INDArray featureVector = Nd4j.zeros(1, VEC_LENGTH);
+        for (int i = 1; i < wordEmbeddings.size(); i++) {
+            INDArray prev = wordEmbeddings.get(i-1) == null ? Nd4j.zeros(1, VEC_LENGTH) : wordEmbeddings.get(i-1);
+            INDArray curr = wordEmbeddings.get(i) == null ? Nd4j.zeros(1, VEC_LENGTH) : wordEmbeddings.get(i);
+            INDArray tanhSum = Transforms.tanh(prev.add(curr));
+            featureVector = featureVector.add(tanhSum);
+        }
+        return featureVector;
+    }
+
+    public List<INDArray> parseLanguage(Language language) {
+        List<INDArray> bows = new ArrayList<>();
+        File path = new File("./src/main/resources/pan14/" +
+                language.getName() + ".csv");
+        try {
+            List<String> lines = Files.readAllLines(path.toPath());
+            lines = lines.subList(1, lines.size());
+            for (String l : lines) {
+                String[] vec = l.split(",");
+                String tweet = vec[0];
+                INDArray bow = getVector(tweet, language);
+                bows.add(bow);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return bows;
     }
 
     @Override
@@ -95,6 +144,6 @@ public class Pan15BagOfWords implements Model {
 
     @Override
     public INDArray getVector(String sentence, Language language) {
-        return (binaryBow) ? getBinaryBoWVector(sentence, language): getBoWVector(sentence, language);
+        return (bigramBow) ? getBoWBigramModel(sentence, language): getBoWVector(sentence, language);
     }
 }

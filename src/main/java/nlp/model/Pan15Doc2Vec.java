@@ -17,7 +17,7 @@ public class Pan15Doc2Vec implements Model {
     private String pathName;
 
     public Pan15Doc2Vec() {
-        pathName = "/Users/mms/Desktop/PR_DNN/dl4j-apr/src/main/resources/doc2vec/";
+        pathName = "./src/main/resources/doc2vec/";
     }
 
     public Pan15Doc2Vec(String p) {
@@ -31,7 +31,7 @@ public class Pan15Doc2Vec implements Model {
         return languageDoc2VecMap;
     }
 
-    HashMap<String, INDArray> parseLanguage(Language language) {
+    public HashMap<String, INDArray> parseLanguage(Language language) {
         HashMap<String, INDArray> doc2vecs = new HashMap<>();
         File path = new File(pathName +
                 language.getName() + "-doc2vec.txt");

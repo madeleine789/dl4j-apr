@@ -50,11 +50,11 @@ public class Pan15Word2VecTest {
         Word2Vec loadedEnglishVec2 = new Pan15Word2Vec(new CBOW<>()).readModelFromFile(Language.ENGLISH);
         Word2Vec loadedEnglishVec3 = new Pan15Word2Vec(new GloVe<>()).readModelFromFile(Language.ENGLISH);
         loadedEnglishVec1.setTokenizerFactory(t);
-        loadedEnglishVec1.setSentenceIter(englishIter);
+        loadedEnglishVec1.setSentenceIterator(englishIter);
         loadedEnglishVec2.setTokenizerFactory(t);
-        loadedEnglishVec2.setSentenceIter(englishIter);
+        loadedEnglishVec2.setSentenceIterator(englishIter);
         loadedEnglishVec3.setTokenizerFactory(t);
-        loadedEnglishVec3.setSentenceIter(englishIter);
+        loadedEnglishVec3.setSentenceIterator(englishIter);
 
         //then
         Assert.assertNotNull(loadedEnglishVec1);
