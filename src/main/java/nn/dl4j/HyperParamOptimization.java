@@ -26,11 +26,8 @@ import org.deeplearning4j.arbiter.optimize.parameter.continuous.ContinuousParame
 import org.deeplearning4j.arbiter.optimize.parameter.integer.IntegerParameterSpace;
 import org.deeplearning4j.arbiter.optimize.runner.IOptimizationRunner;
 import org.deeplearning4j.arbiter.optimize.runner.LocalOptimizationRunner;
-import org.deeplearning4j.arbiter.optimize.ui.ArbiterUIServer;
-import org.deeplearning4j.arbiter.optimize.ui.listener.UIOptimizationRunnerStatusListener;
 import org.deeplearning4j.arbiter.saver.local.multilayer.LocalMultiLayerNetworkSaver;
 import org.deeplearning4j.arbiter.scoring.RegressionValue;
-import org.deeplearning4j.arbiter.scoring.multilayer.TestSetAccuracyScoreFunction;
 import org.deeplearning4j.arbiter.scoring.multilayer.TestSetRegressionScoreFunction;
 import org.deeplearning4j.arbiter.task.MultiLayerNetworkTaskCreator;
 import org.deeplearning4j.datasets.iterator.MultipleEpochsIterator;
@@ -52,7 +49,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class HyperParamOptimization4layers {
+public class HyperParamOptimization {
 
     private static int numOutputs = 5;
     private static int numEpochs = 10;
@@ -69,7 +66,7 @@ public class HyperParamOptimization4layers {
     private static int idxTo = 6;
     private static boolean regression = true;
 
-    private static Logger log = LoggerFactory.getLogger(HyperParamOptimization4layers.class);
+    private static Logger log = LoggerFactory.getLogger(HyperParamOptimization.class);
 
     public static void main(String[] args) throws Exception {
         NativeOpsHolder.getInstance().getDeviceNativeOps().setElementThreshold(16384);
