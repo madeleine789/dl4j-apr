@@ -1,5 +1,6 @@
 package nn.dl4j;
 
+import model.Config;
 import model.Language;
 import nlp.model.Model;
 import nlp.model.Pan15BagOfWords;
@@ -21,7 +22,6 @@ import java.util.Objects;
 public class Pan15DataSetIterator extends AbstractDataSetIterator {
     protected RecordReader recordReader;
     protected WritableConverter converter;
-    protected int batchSize = 10;
     protected int maxNumBatches = -1;
     protected int labelIndex = -1;
     protected int labelIndexTo = -1;
@@ -31,36 +31,6 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
     protected Language language = Language.ENGLISH;
     private Pan15SentencePreProcessor preProcessor = new Pan15SentencePreProcessor();
     private Model model;
-
-    /**
-     * Main constructor for multi-label regression (i.e., regression with multiple outputs)
-     *
-     * @param recordReader      RecordReader to get data from
-     * @param labelIndexFrom    Index of the first regression target
-     * @param labelIndexTo      Index of the last regression target, inclusive
-     * @param batchSize         Minibatch size
-     * @param regression        Require regression = true. Mainly included to avoid clashing with other constructors previously defined :/
-     */
-    public Pan15DataSetIterator(RecordReader recordReader, int batchSize, int labelIndexFrom, int labelIndexTo,
-                                boolean regression, Language language, Model model){
-        this(recordReader, new SelfWritableConverter(), batchSize, labelIndexFrom, labelIndexTo, -1, -1, regression,
-                language, model);
-    }
-
-    /**
-     * Main constructor for single-label regression (i.e., regression with one outputs)
-     *
-     * @param recordReader      RecordReader to get data from
-     * @param labelIndexFrom    Index of the first regression target
-     * @param batchSize         Minibatch size
-     * @param regression        Require regression = true. Mainly included to avoid clashing with other constructors previously defined :/
-     */
-    public Pan15DataSetIterator(RecordReader recordReader, int batchSize, int labelIndexFrom, boolean regression,
-                                Language language, Model model){
-        this(recordReader, new SelfWritableConverter(), batchSize, labelIndexFrom, labelIndexFrom,
-                -1, -1, regression, language, model);
-    }
-
 
     /**
      * Main constructor
@@ -73,7 +43,7 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
      * @param numPossibleLabels the number of possible labels for classification. Not used if regression == true
      * @param regression        if true: regression. If false: classification (assume labelIndexFrom is a
      */
-    public Pan15DataSetIterator(RecordReader recordReader, WritableConverter converter, int batchSize, int labelIndexFrom,
+    private Pan15DataSetIterator(RecordReader recordReader, WritableConverter converter, int batchSize, int labelIndexFrom,
                                  int labelIndexTo, int numPossibleLabels, int maxNumBatches, boolean regression,
                                  Language language, Model model) {
         super(recordReader, batchSize, maxNumBatches);
@@ -87,6 +57,16 @@ public class Pan15DataSetIterator extends AbstractDataSetIterator {
         this.regression = regression;
         this.language = language;
         this.model = model;
+    }
+
+    public Pan15DataSetIterator(RecordReader recordReader, Language language, Model inputModel) {
+        this(recordReader, new SelfWritableConverter(), Config.BATCH_SIZE, Config.IDX_FROM, Config.IDX_TO, -1, -1,
+                Config.REGRESSION, language, inputModel);
+    }
+
+    public Pan15DataSetIterator(RecordReader recordReader, int batchSize, Language language, Model inputModel) {
+        this(recordReader, new SelfWritableConverter(), batchSize, Config.IDX_FROM, Config.IDX_TO, -1, -1,
+                Config.REGRESSION, language, inputModel);
     }
 
     public DataSet getDataSet(List<Writable> record) {

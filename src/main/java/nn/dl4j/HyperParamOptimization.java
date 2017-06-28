@@ -51,19 +51,13 @@ import java.util.concurrent.TimeUnit;
 
 public class HyperParamOptimization {
 
-    private static int numOutputs = 5;
     private static int numEpochs = 10;
     private static int seed = 42;
-    private static int batchSize = 500;
-    private static LossFunctions.LossFunction lossFunction = LossFunctions.LossFunction.MSE;
-    private static Updater updater = Updater.ADAM;
 
     private static Language language = Language.ENGLISH;
     private static File testFile = new File(Config.PATH + "/english/english-test-pan15.csv");
     private static File trainFile = new File(Config.PATH +"/english/english-train-pan15.csv");
 
-    private static int idxFrom = 2;
-    private static int idxTo = 6;
     private static boolean regression = true;
 
     private static Logger log = LoggerFactory.getLogger(HyperParamOptimization.class);
@@ -74,10 +68,10 @@ public class HyperParamOptimization {
 
         //First: Set up the hyperparameter configuration space.
         ParameterSpace<Double> learningRateHyperparam = new ContinuousParameterSpace(0.0001, 0.1);  //Values will be generated uniformly at random between 0.0001 and 0.1 (inclusive)
-        ParameterSpace<Integer> layer1out = new IntegerParameterSpace(Config.MODEL.getVecLength(),5000);
-        ParameterSpace<Integer> layer2out = new IntegerParameterSpace(Config.MODEL.getVecLength(),5000);
-        ParameterSpace<Integer> layer3out = new IntegerParameterSpace(Config.MODEL.getVecLength(),5000);
-        ParameterSpace<Integer> layer4out = new IntegerParameterSpace(Config.MODEL.getVecLength(),5000);
+        ParameterSpace<Integer> layer1out = new IntegerParameterSpace(Config.MODEL.getVecLength(),10000);
+        ParameterSpace<Integer> layer2out = new IntegerParameterSpace(10,10000);
+        ParameterSpace<Integer> layer3out = new IntegerParameterSpace(10,10000);
+        ParameterSpace<Integer> layer4out = new IntegerParameterSpace(10,10000);
 
         MultiLayerSpace hyperparameterSpace = new MultiLayerSpace.Builder()
                 .iterations(100)
@@ -85,8 +79,8 @@ public class HyperParamOptimization {
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
                 .gradientNormalizationThreshold(1.0)
                 .regularization(true)
-                .dropOut(0.5)
-                .updater(updater)
+                .dropOut(Config.DROPOUT)
+                .updater(Config.UPDATER)
                 .adamMeanDecay(0.5)
                 .adamVarDecay(0.5)
                 .weightInit(WeightInit.XAVIER)
@@ -95,36 +89,32 @@ public class HyperParamOptimization {
                 .addLayer(new RBMLayerSpace.Builder().hiddenUnit(RBM.HiddenUnit.BINARY).visibleUnit(RBM.VisibleUnit.GAUSSIAN)
                         .dropOut(0.75)
                         .activation("relu")
-                        .lossFunction(lossFunction)
                         .nIn(Config.MODEL.getVecLength()).nOut(layer1out)
                         .build())
                 .addLayer(new RBMLayerSpace.Builder()
                         .hiddenUnit(RBM.HiddenUnit.BINARY)
-                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
+                        .visibleUnit(RBM.VisibleUnit.BINARY)
                         .activation("relu")
-                        .lossFunction(lossFunction)
                         .nIn(layer1out).nOut(layer2out).build())
                 .addLayer(new RBMLayerSpace.Builder()
                         .hiddenUnit(RBM.HiddenUnit.BINARY)
-                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
+                        .visibleUnit(RBM.VisibleUnit.BINARY)
                         .activation("relu")
-                        .lossFunction(lossFunction)
                         .nIn(layer2out)
                         .nOut(layer3out).build())
                 .addLayer(new RBMLayerSpace.Builder()
                         .hiddenUnit(RBM.HiddenUnit.BINARY)
-                        .visibleUnit(RBM.VisibleUnit.GAUSSIAN)
+                        .visibleUnit(RBM.VisibleUnit.BINARY)
                         .activation("relu")
-                        .lossFunction(lossFunction)
                         .nIn(layer3out)
                         .nOut(layer4out).build())
                 .addLayer(new OutputLayerSpace.Builder()
-                        .lossFunction(lossFunction)
-                        .updater(updater)
+                        .lossFunction(Config.LOSS_FUNCTION)
+                        .updater(Config.UPDATER)
                         .adamMeanDecay(0.6)
                         .adamVarDecay(0.7)
                         .nIn(layer4out)
-                        .nOut(numOutputs).build())
+                        .nOut(Config.NUM_OUTPUTS).build())
                 .pretrain(true).backprop(true).build();
 
 
@@ -135,11 +125,11 @@ public class HyperParamOptimization {
         // (b) How are going to provide data? For now, we'll use a DataSetIterator
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(trainFile));
-        DataSetIterator train = new MultipleEpochsIterator(numEpochs, new Pan15DataSetIterator(recordReader, batchSize, idxFrom, idxTo, regression,  language,   Config.MODEL));
+        DataSetIterator train = new MultipleEpochsIterator(numEpochs, new Pan15DataSetIterator(recordReader, language, Config.MODEL));
 
         recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(testFile));
-        DataSetIterator test = new Pan15DataSetIterator(recordReader,batchSize / 5, idxFrom, idxTo,true, language, Config.MODEL);
+        DataSetIterator test = new Pan15DataSetIterator(recordReader,Config.BATCH_SIZE / 5, language, Config.MODEL);
 
         DataProvider<DataSetIterator> dataProvider = new DataSetIteratorProvider(train, test);
 

@@ -21,7 +21,6 @@ import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
-import org.deeplearning4j.nn.conf.Updater;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
 import org.deeplearning4j.nn.conf.layers.RBM;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
@@ -32,7 +31,6 @@ import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
 import org.nd4j.linalg.factory.Nd4j;
-import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,29 +47,19 @@ public class DBN {
 
     private static Logger log = LoggerFactory.getLogger(DBN.class);
     private MultiLayerNetwork model;
-    private static int numOutputs = 5;
-    private static int numEpochs = 15;
     private static int iterations = 10;
     private static int seed = 42;
-    private static int batchSize = 500;
-    private static LossFunctions.LossFunction lossFunction = LossFunctions.LossFunction.MSE;
-    private static Updater updater = Updater.ADAM;
 
     private Language language = Language.ENGLISH;
     private File testFile = new File(Config.PATH + "/english/english-test-short.csv");
     private File trainFile = new File(Config.PATH +"/english/english-train-short.csv");
 
-    private int idxFrom = 2;
-    private int idxTo = 6;
-    private boolean regression = true;
     private boolean modelFromJson = true;
-    private Model inputModel = Config.MODEL;
 
     public DBN(Language language, String testFile, String trainFile, boolean modelFromJson) {
         this.language = language;
         this.testFile = new File(testFile);
         this.trainFile = new File(trainFile);
-        regression = true;
         this.modelFromJson = modelFromJson;
     }
 
@@ -81,14 +69,14 @@ public class DBN {
         if (modelFromJson) {
             this.model = getModelFromJson();
         } else {
-            this.model = getModel(inputModel.getVecLength());
+            this.model = getModel(Config.MODEL.getVecLength());
         }
 
         model.conf().setPretrain(false);
         RecordReader recordReader = new CSVRecordReader(1);
         recordReader.initialize(new FileSplit(trainFile));
 
-        DataSetIterator iter = new Pan15DataSetIterator(recordReader,batchSize, idxFrom, idxTo, regression, language, inputModel);
+        DataSetIterator iter = new Pan15DataSetIterator(recordReader, language, Config.MODEL);
 
         model.init();
         log.info("Pretrain model....");
@@ -122,9 +110,9 @@ public class DBN {
         recordReader = new CSVRecordReader(1);
         log.info("Load verification data from " + testFile.toString() ) ;
         recordReader.initialize(new FileSplit(testFile));
-        iter = new Pan15DataSetIterator(recordReader,batchSize / 5, idxFrom, idxTo,true, language, inputModel);
+        iter = new Pan15DataSetIterator(recordReader,Config.BATCH_SIZE / 5, language, Config.MODEL);
 
-        RegressionEvaluation eval = new RegressionEvaluation( numOutputs );
+        RegressionEvaluation eval = new RegressionEvaluation( Config.NUM_OUTPUTS );
         while(iter.hasNext()) {
             DataSet ds = iter.next();
             ds.shuffle();
@@ -160,9 +148,8 @@ public class DBN {
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
                 .gradientNormalizationThreshold(1.0)
                 .regularization(true)
-//                .l2(0.001)
-                .dropOut(0.5)
-                .updater(updater)
+                .dropOut(Config.DROPOUT)
+                .updater(Config.UPDATER)
                 .adamMeanDecay(0.5)
                 .adamVarDecay(0.5)
                 .weightInit(WeightInit.XAVIER)
@@ -170,18 +157,18 @@ public class DBN {
                 .list()
                 .layer(0, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
                         .nIn(numInputs).nOut(2750).dropOut(0.75)
-                        .activation(Activation.RELU).lossFunction(lossFunction).build())
-                .layer(1, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
+                        .activation(Activation.RELU).build())
+                .layer(1, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.BINARY)
                         .nIn(2750).nOut(2000)
-                        .activation(Activation.RELU).lossFunction(lossFunction).build())
-                .layer(2, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
+                        .activation(Activation.RELU).build())
+                .layer(2, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.BINARY)
                         .nIn(2000).nOut(1000)
-                        .activation(Activation.RELU).lossFunction(lossFunction).build())
-                .layer(3, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.GAUSSIAN)
+                        .activation(Activation.RELU).build())
+                .layer(3, new RBM.Builder(RBM.HiddenUnit.BINARY, RBM.VisibleUnit.BINARY)
                         .nIn(1000).nOut(200)
-                        .activation(Activation.RELU).lossFunction(lossFunction).build())
-                .layer(4, new OutputLayer.Builder(lossFunction)
-                        .nIn(200).nOut(numOutputs).updater(updater)
+                        .activation(Activation.RELU).build())
+                .layer(4, new OutputLayer.Builder(Config.LOSS_FUNCTION)
+                        .nIn(200).nOut(Config.NUM_OUTPUTS).updater(Config.UPDATER)
                         .adamMeanDecay(0.6).adamVarDecay(0.7)
                         .build())
                 .pretrain(true).backprop(true)

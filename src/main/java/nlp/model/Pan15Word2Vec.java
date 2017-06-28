@@ -38,12 +38,12 @@ public class Pan15Word2Vec implements Model {
     private ElementsLearningAlgorithm<VocabWord> learningAlgorithm = new SkipGram<>();
 
     public Pan15Word2Vec() {
-        getW2VFromFile();
+        getWord2Vec();
     }
 
     public Pan15Word2Vec(ElementsLearningAlgorithm<VocabWord> learningAlgorithm) {
         this.learningAlgorithm = learningAlgorithm;
-        getW2VFromFile();
+        getWord2Vec();
     }
 
     private void getW2VFromFile() {

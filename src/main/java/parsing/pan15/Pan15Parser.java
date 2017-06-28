@@ -1,5 +1,6 @@
 package parsing.pan15;
 
+import model.Config;
 import parsing.CorpusParser;
 import model.Language;
 import model.Personality;
@@ -35,7 +36,7 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
 
      static HashMap<String, Pan15Author> parseLanguage(Language language) {
         HashMap<String, Pan15Author> authors = new HashMap<>();
-        File path = new File("./src/main/resources/supervised/pan15/corpora/" +
+        File path = new File(Config.PATH + "/corpora/" +
                 language.getName() + ".csv");
         try {
             Files.readAllLines(path.toPath()).stream().filter(l -> ! l.startsWith("\"AUTHID\"")).forEach(l -> {
@@ -82,7 +83,7 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
     }
 
     public HashMap<Language, HashMap<String, Pan15Author>> parseCSVCorpus() {
-        URL resource = Pan15Parser.class.getClassLoader().getResource("supervised/pan15/corpora");
+        URL resource = Pan15Parser.class.getClassLoader().getResource(Config.RESOURCE_PATH + "corpora");
         File folder = new File(resource.getPath());
         File[] files = folder.listFiles();
         HashMap<Language, HashMap<String, Pan15Author>> result = new HashMap<>();
@@ -132,7 +133,7 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
     private static HashMap<Language,List<String[]>> getTruthFiles() throws URISyntaxException, IOException {
         HashMap<Language, List<String[]>> result = new HashMap<>();
         for(Language language : Language.values()) {
-            URL resource = Pan15Parser.class.getClassLoader().getResource("supervised/pan15/" + language.getName() +
+            URL resource = Pan15Parser.class.getClassLoader().getResource(Config.RESOURCE_PATH + language.getName() +
                     "/truth.txt");
             List<String[]> lines = Files.readAllLines(new File(resource.getPath()).toPath()).stream().map(l -> l
                     .split(":::")).collect(Collectors.toList());
@@ -154,7 +155,7 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
         HashMap<Language, HashMap<String, Pan15Author>> languageHashMapHashMap = parseXMLCorpus("xml/pan15-");
         for (Language language : Language.values()) {
             HashMap<String, Pan15Author> result = languageHashMapHashMap.get(language);
-            PrintWriter pw = new PrintWriter(new File("test-" + language.getName() + ".csv"));
+            PrintWriter pw = new PrintWriter(new File( language.getName() + ".csv"));
             pw.write("\"AUTHID\",\"STATUS\",\"sEXT\",\"sNEU\",\"sAGR\",\"sCON\",\"sOPN\",\"GENDER\",\"AGE\"\n");
             for (String id : result.keySet()) {
                 Pan15Author author = result.get(id);
@@ -178,7 +179,7 @@ public class Pan15Parser implements CorpusParser<Pan15Author> {
 
     private void divideFiles() {
         {
-            URL resource = Pan15Parser.class.getClassLoader().getResource("supervised/pan15/corpora");
+            URL resource = Pan15Parser.class.getClassLoader().getResource(Config.RESOURCE_PATH + "corpora");
             File folder = new File(resource.getPath());
             File[] files = folder.listFiles();
             List<File> csvFiles = Arrays.stream(files).filter(f -> f.getName().endsWith(".csv")).collect(Collectors.toList());
